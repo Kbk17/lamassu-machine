@@ -53,8 +53,9 @@ let customRequirementNumericalKeypad = null
 let customRequirementTextKeyboard = null
 let customRequirementChoiceList = null
 
-// Globalny lock dla operacji związanych z interakcją użytkownika
-global.uiActionLock = global.uiActionLock || false;
+// Dodanie zmiennej do globalnego blokowania UI
+var uiLocked = false;
+var uiLockTimeout = null;
 
 var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr',
   'hu', 'it', 'lt', 'nb', 'nl', 'pl', 'pt', 'ro', 'sl', 'sv', 'tr']
@@ -66,7 +67,15 @@ function connect () {
     var data = $.parseJSON(event.data)
     processData(data)
   }
-  websocket.onerror = err => console.log(err)
+  websocket.onerror = function(err) {
+    console.log(err)
+    // Odblokuj UI przy błędzie WebSocket
+    unlockUI()
+  }
+  websocket.onclose = function() {
+    // Odblokuj UI przy zamknięciu połączenia WebSocket
+    unlockUI()
+  }
 }
 
 function verifyConnection () {
@@ -76,15 +85,15 @@ function verifyConnection () {
 }
 
 function buttonPressed (button, data) {
-  if (!buttonActive || global.uiActionLock) return
+  if (!buttonActive || uiLocked) return
   wifiKeyboard.deactivate()
   promoKeyboard.deactivate()
   emailKeyboard.deactivate()
   customRequirementTextKeyboard.deactivate()
   buttonActive = false
   
-  // Aktywuj globalny lock
-  lockUI()
+  // Dodatkowa blokada UI na poziomie przycisków
+  lockUI();
   
   setTimeout(function () {
     buttonActive = true
@@ -656,6 +665,15 @@ $(document).ready(function () {
           window.onmouseup =
             function () { return false }
 
+  // Globalny handler dla wszystkich przycisków, zapobiegający podwójnemu kliknięciu
+  $(document).on('click', 'button, .button, [role="button"]', function(e) {
+    if (uiLocked) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  });
+
   BigNumber.config({ ROUNDING_MODE: BigNumber.ROUND_HALF_EVEN })
 
   wifiKeyboard = new Keyboard({
@@ -1097,13 +1115,16 @@ function targetButton (element) {
 
 function touchEvent (element, callback) {
   function handler (e) {
-    // Sprawdź czy interfejs jest zablokowany
-    if (global.uiActionLock) {
+    // Jeśli UI jest zablokowane, ignoruj wszystkie kliknięcia
+    if (uiLocked) {
       e.stopPropagation()
       e.preventDefault()
       return
     }
-    
+
+    // Zablokuj UI
+    lockUI()
+
     var target = targetButton(e.target)
     target.classList.add('active')
 
@@ -1128,12 +1149,15 @@ function touchEvent (element, callback) {
 
 function touchImmediateEvent (element, callback) {
   function handler (e) {
-    // Sprawdź czy interfejs jest zablokowany
-    if (global.uiActionLock) {
+    // Jeśli UI jest zablokowane, ignoruj wszystkie kliknięcia
+    if (uiLocked) {
       e.stopPropagation()
       e.preventDefault()
       return
     }
+
+    // Zablokuj UI
+    lockUI()
     
     callback(e)
     e.stopPropagation()
@@ -1143,6 +1167,50 @@ function touchImmediateEvent (element, callback) {
     element.addEventListener('touchstart', handler)
   }
   element.addEventListener('mousedown', handler)
+}
+
+// Funkcja blokująca interfejs użytkownika
+function lockUI() {
+  uiLocked = true;
+  
+  // Zamiast dodawać klasę, bezpośrednio modyfikujemy styl body
+  $('body').css('pointer-events', 'none');
+  
+  // Dodaj animację ładowania na górze strony
+  if ($('#ui-lock-indicator').length === 0) {
+    $('body').append('<div id="ui-lock-indicator" style="position: fixed; top: 0; left: 0; right: 0; height: 3px; background: rgba(255, 255, 255, 0.5); z-index: 9999;"></div>');
+    $('#ui-lock-indicator').css('animation', 'lockSlide 1s infinite');
+    
+    // Dodaj style animacji jeśli nie istnieją
+    if ($('#lock-animation-style').length === 0) {
+      $('head').append(
+        '<style id="lock-animation-style">' +
+        '@keyframes lockSlide {' +
+        '  0% { transform: translateX(-100%); }' +
+        '  100% { transform: translateX(100%); }' +
+        '}' +
+        '</style>'
+      );
+    }
+  }
+  
+  // Wyczyść istniejący timeout jeśli istnieje
+  if (uiLockTimeout) {
+    clearTimeout(uiLockTimeout);
+  }
+  
+  // Odblokuj UI po określonym czasie
+  uiLockTimeout = setTimeout(function() {
+    unlockUI();
+  }, 1000);
+}
+
+// Funkcja odblokowująca interfejs użytkownika
+function unlockUI() {
+  uiLocked = false;
+  $('body').css('pointer-events', '');
+  $('#ui-lock-indicator').remove();
+  uiLockTimeout = null;
 }
 
 function setupImmediateButton (buttonClass, buttonAction, callback) {
@@ -1187,6 +1255,9 @@ function setState (state, delay) {
 
   previousState = currentState
   currentState = state
+
+  // Odblokuj UI przy zmianie stanu
+  unlockUI()
 
   wifiKeyboard.reset()
   promoKeyboard.reset()
@@ -2325,53 +2396,4 @@ function setReceiptPrint (receiptStatus, smsReceiptStatus) {
 function externalCompliance (url) {
   qrize(url, $('#qr-code-external-validation'), cashDirection === 'cashIn' ? CASH_IN_QR_COLOR : CASH_OUT_QR_COLOR)
   return setScreen('external_compliance')
-}
-
-// Funkcja blokująca UI
-function lockUI() {
-  global.uiActionLock = true;
-  $('button, .button, .cash-button, .wifi-network-button, .circle-button, .square-button').addClass('button-clicked');
-  
-  // Automatycznie odblokowujemy po 1 sekundzie, jeśli backend nie odblokował wcześniej
-  setTimeout(function() {
-    unlockUI();
-  }, 1000);
-}
-
-// Funkcja odblokowująca UI
-function unlockUI() {
-  global.uiActionLock = false;
-  $('button, .button, .cash-button, .wifi-network-button, .circle-button, .square-button').removeClass('button-clicked');
-}
-
-// Zmodyfikowana funkcja cancel do obsługi zarówno kamery jak i skanera
-function cancel() {
-  // Jeśli globalny lock jest aktywny, ignorujemy wszystkie żądania
-  if (global.uiActionLock) {
-    console.log('[SCANNER] UI action lock active, ignoring cancel request');
-    return Promise.resolve(false);
-  }
-  
-  // Aktywujemy globalny lock
-  lockUI();
-  
-  console.log('[SCANNER] Cancelling operation');
-  
-  // Anuluj operację bieżącą
-  if (currentCallback) {
-    const callback = currentCallback;
-    currentCallback = null;
-    callback(null, null);
-  }
-  
-  isRunning = false;
-  
-  // Anuluj operację kamery
-  if (activeStream) {
-    console.log('[SCANNER] Cancelling camera stream');
-    activeStream.destroy();
-    activeStream = null;
-  }
-  
-  return Promise.resolve(true);
 }
