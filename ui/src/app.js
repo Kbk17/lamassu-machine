@@ -55,7 +55,7 @@ let customRequirementChoiceList = null
 
 // Globalny mechanizm blokowania przycisków
 let buttonLockTimestamp = 0;
-const BUTTON_LOCK_DURATION = 1000; // 1 sekunda blokady
+const BUTTON_LOCK_DURATION = 500; // Zmniejsz czas blokady do 500ms
 const BUTTON_GROUP_SELECTORS = {
   'cash-buttons': '.cash-button', 
   'crypto-buttons': '.choose-coin-button',
@@ -140,6 +140,10 @@ function buttonPressed (button, data) {
   emailKeyboard.deactivate()
   customRequirementTextKeyboard.deactivate()
   buttonActive = false
+  
+  // Odblokuj przyciski gdy wykonywane jest działanie
+  unlockButtons()
+  
   setTimeout(function () {
     buttonActive = true
     wifiKeyboard.activate()
@@ -1161,8 +1165,16 @@ function touchEvent (element, callback) {
     
     var target = targetButton(e.target);
     
-    // Blokuj wszystkie przyciski i zaznacz kliknięty
-    lockButtons(target, element.id === 'crypto-buttons' ? 'crypto-buttons' : 'all-buttons');
+    // Nie blokuj przycisków dla specjalnych elementów nawigacyjnych
+    const isNavigationButton = $(target).hasClass('nav-button') || 
+                              ($(target).attr('id') === 'completed_viewport') ||
+                              ($(target).attr('id') === 'cash-out-button') ||
+                              element.id === 'languages';
+    
+    if (!isNavigationButton) {
+      // Blokuj wszystkie przyciski i zaznacz kliknięty tylko dla elementów niebędących nawigacją
+      lockButtons(target, element.id === 'crypto-buttons' ? 'crypto-buttons' : 'all-buttons');
+    }
 
     target.classList.add('active');
 
@@ -1195,8 +1207,15 @@ function touchImmediateEvent (element, callback) {
       return;
     }
     
-    // Blokuj wszystkie przyciski
-    lockButtons(targetButton(e.target), 'all-buttons');
+    // Nie blokuj przycisków dla niektórych przycisków natychmiastowych
+    const isSpecialButton = element.id === 'completed_viewport' || 
+                          element.id === 'fiat_receipt_viewport' || 
+                          element.id === 'fiat_complete_viewport';
+    
+    if (!isSpecialButton) {
+      // Blokuj wszystkie przyciski
+      lockButtons(targetButton(e.target), 'all-buttons');
+    }
     
     callback(e);
     e.stopPropagation();
@@ -1226,6 +1245,9 @@ function setupButton (buttonClass, buttonAction, actionData) {
 function setScreen (newScreen, oldScreen) {
   if (newScreen === oldScreen) return
 
+  // Odblokuj przyciski przy zmianie ekranu
+  unlockButtons()
+
   if (newScreen === 'insert_bills') {
     $('.js-processing-bill').html(translate('Lamassu Cryptomat'))
     $('.bill img').css({'-webkit-transform': 'none', top: 0, left: 0})
@@ -1250,6 +1272,9 @@ function setState (state, delay) {
 
   previousState = currentState
   currentState = state
+
+  // Odblokuj przyciski natychmiast przy zmianie stanu
+  unlockButtons();
 
   wifiKeyboard.reset()
   promoKeyboard.reset()
@@ -2389,3 +2414,16 @@ function externalCompliance (url) {
   qrize(url, $('#qr-code-external-validation'), cashDirection === 'cashIn' ? CASH_IN_QR_COLOR : CASH_OUT_QR_COLOR)
   return setScreen('external_compliance')
 }
+
+// Funkcja do obsługi przycisku przejścia do następnego ekranu
+function setupTransitionButton (buttonClass, buttonAction, actionData) {
+  var button = document.getElementById(buttonClass)
+  touchEvent(button, function () {
+    // Odblokuj wszystkie przyciski przed przejściem do następnego ekranu
+    unlockButtons();
+    buttonPressed(buttonAction, actionData)
+  })
+}
+
+// Zamień wybrane setupButton na setupTransitionButton dla przycisków nawigacyjnych
+// setupButton = setupTransitionButton;
