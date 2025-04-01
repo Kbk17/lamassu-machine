@@ -56,26 +56,45 @@ let customRequirementChoiceList = null
 // Dodanie zmiennej do globalnego blokowania UI
 var uiLocked = false;
 var uiLockTimeout = null;
+var UI_LOCK_TIME = 3000; // Zwiększam czas blokady do 3 sekund
 
 var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr',
   'hu', 'it', 'lt', 'nb', 'nl', 'pl', 'pt', 'ro', 'sl', 'sv', 'tr']
 
 function connect () {
-  console.log(`ws://${HOST}:${PORT}/`)
-  websocket = new WebSocket(`ws://${HOST}:${PORT}/`)
+  console.log(`ws://${HOST}:${PORT}/`);
+  websocket = new WebSocket(`ws://${HOST}:${PORT}/`);
+  
   websocket.onmessage = function (event) {
-    var data = $.parseJSON(event.data)
-    processData(data)
-  }
+    try {
+      var data = $.parseJSON(event.data);
+      processData(data);
+      
+      // Sprawdź, czy to nie jest odpowiedź na przetwarzanie przycisku
+      if (data.action && !data.button) {
+        // Odblokuj UI po zakończeniu przetwarzania danych
+        // Ale z małym opóźnieniem, aby uniknąć migania UI
+        setTimeout(function() {
+          unlockUI();
+        }, 200);
+      }
+    } catch (error) {
+      console.error('Błąd przetwarzania danych z websocket:', error);
+      unlockUI();
+    }
+  };
+  
   websocket.onerror = function(err) {
-    console.log(err)
+    console.log('WebSocket błąd:', err);
     // Odblokuj UI przy błędzie WebSocket
-    unlockUI()
-  }
+    unlockUI();
+  };
+  
   websocket.onclose = function() {
+    console.log('WebSocket zamknięte');
     // Odblokuj UI przy zamknięciu połączenia WebSocket
-    unlockUI()
-  }
+    unlockUI();
+  };
 }
 
 function verifyConnection () {
@@ -85,26 +104,34 @@ function verifyConnection () {
 }
 
 function buttonPressed (button, data) {
-  if (!buttonActive || uiLocked) return
-  wifiKeyboard.deactivate()
-  promoKeyboard.deactivate()
-  emailKeyboard.deactivate()
-  customRequirementTextKeyboard.deactivate()
-  buttonActive = false
+  // Sprawdź zarówno naszą lokalną blokadę jak i globalną blokadę
+  if (!buttonActive || uiLocked || (window.global && window.global.uiActionLock)) {
+    console.log('Próba wywołania przycisku ' + button + ' podczas blokady UI - zignorowano');
+    return;
+  }
   
-  // Dodatkowa blokada UI na poziomie przycisków
+  // Zablokuj UI
   lockUI();
   
+  console.log('Wywołanie przycisku: ' + button);
+  
+  wifiKeyboard.deactivate();
+  promoKeyboard.deactivate();
+  emailKeyboard.deactivate();
+  customRequirementTextKeyboard.deactivate();
+  buttonActive = false;
+  
   setTimeout(function () {
-    buttonActive = true
-    wifiKeyboard.activate()
-    promoKeyboard.activate()
-    emailKeyboard.activate()
-    customRequirementTextKeyboard.activate()
-  }, 300)
-  var res = { button: button }
-  if (data || data === null) res.data = data
-  if (websocket) websocket.send(JSON.stringify(res))
+    buttonActive = true;
+    wifiKeyboard.activate();
+    promoKeyboard.activate();
+    emailKeyboard.activate();
+    customRequirementTextKeyboard.activate();
+  }, 300);
+  
+  var res = { button: button };
+  if (data || data === null) res.data = data;
+  if (websocket) websocket.send(JSON.stringify(res));
 }
 
 const displayLN = 'Lightning Network'
@@ -157,192 +184,197 @@ function processData (data) {
     return billValidator === 'HCM2'
   }
 
-  switch (data.action) {
-    case 'wifiList':
-      if (cryptomatModel === 'douro1') {
-        setState('wifi')
-      } else {
-        setState('connect_ethernet')
-      }
-      break
-    case 'wifiPass':
-      setState('wifi_password')
-      break
-    case 'wifiConnecting':
-      t('wifi-connecting', translate('This could take a few moments.'))
-      setState('wifi_connecting')
-      break
-    case 'wifiConnected':
-      t('wifi-connecting', translate('Connected. Waiting for ticker.'))
-      setState('wifi_connecting') // in case we didn't go through wifi-connecting
-      break
-    case 'pairing':
-      setState('pairing')
-      break
-    case 'pairingError':
-      $('.js-pairing-error').text(data.err)
-      // Give it some time to update text in background
-      setTimeout(function () { setState('pairing_error') }, 500)
-      break
-    case 'booting':
-      if (currentState !== 'maintenance') setState('booting')
-      break
-    case 'idle':
-    case 'fakeIdle':
-      setState('idle')
-      break
-    case 'dualIdle':
-    case 'fakeDualIdle':
-      setState('dual_idle')
-      break
-    case 'registerUsSsn':
-      usSsnKeypad.activate()
-      setState('register_us_ssn')
-      setComplianceTimeout(null, 'finishBeforeSms')
-      break
-    case 'registerPhone':
-      phoneKeypad.activate()
-      setState('register_phone')
-      break
-    case 'registerEmail':
-      emailKeyboard.setConstraint('email', ['#submit-email'])
-      setState('register_email')
-      break
-    case 'securityCode':
-      securityKeypad.activate()
-      setState('security_code')
-      break
-    case 'scanned':
-      isRecycler(data.billValidator)
-        ? setState('insert_first_bills_recycler')
-        : setState('insert_bills')
-      break
-    case 'acceptingFirstBill':
-      $('.js-send-crypto-enable').show()
-      setState('insert_bills')
-      break
-    case 'acceptingBills':
-      $('.blocked-customer-top').hide()
-      setState('insert_more_bills')
-      break
-    case 'acceptingFirstRecyclerBills':
-      $('.js-continue-crypto-enable').show()
-      $('.js-send-crypto-enable').show()
-      setState('insert_first_bills_recycler')
-      break
-    case 'recyclerContinue':
-      disableRecyclerBillButtons()
-      break;
-    case 'acceptingRecyclerBills':
-      enableRecyclerBillButtons()
-      $('.blocked-customer-top').hide()
-      setState('insert_bills_recycler')
-      break
-    case 'acceptingBill':
-      setAccepting(true)
-      break
-    case 'rejectedBill':
-      setAccepting(false)
-      break
-    case 'cryptoTransferPending':
-      setState('sending_coins')
-      break
-    case 'cryptoTransferComplete':
-      setState('completed')
-      break
-    case 'networkDown':
-      setState('trouble')
-      break
-    case 'balanceLow':
-      setState('limit_reached')
-      break
-    case 'insufficientFunds':
-      setState('out_of_coins')
-      break
-    case 'highBill':
-      highBill(data.highestBill, data.reason)
-      break
-    case 'minimumTx':
-      minimumTx(data.lowestBill)
-      break
-    case 'chooseFiat':
-      if (data.isCashInOnlyCoin) {
-        setState('cash_in_only_coin')
+  if (data.action) {
+    // Odblokuj UI przed zmianą stanu
+    unlockUI();
+    
+    switch (data.action) {
+      case 'wifiList':
+        if (cryptomatModel === 'douro1') {
+          setState('wifi')
+        } else {
+          setState('connect_ethernet')
+        }
         break
-      }
-      chooseFiat(data.chooseFiat)
-      break
-    case 'deposit':
-      setState('deposit')
-      deposit(data.tx)
-      break
-    case 'rejectedDeposit':
-      setState('deposit_timeout')
-      break
-    case 'fiatReceipt':
-      fiatReceipt(data.tx)
-      break
-    case 'fiatComplete':
-      fiatComplete(data.tx)
-      break
-    case 'restart':
-      setState('restart')
-      break
-    case 'chooseCoin':
-      chooseCoin(data.coins, data.twoWayMode)
-      break
-    case 'smsVerification':
-      smsVerification(data.threshold)
-      break
-    case 'emailVerification':
-      emailVerification(data.threshold);
-      break;
-    case 'permission_id':
-      idVerification()
-      break
-    case 'permission_face_photo':
-      facephotoPermission()
-      break
-    case 'usSsnPermission':
-      usSsnPermission()
-      break
-    case 'externalPermission':
-      externalPermission()
-      break
-    case 'blockedCustomer':
-      blockedCustomer()
-      break
-    case 'insertPromoCode':
-      promoKeyboard.activate()
-      setState('insert_promo_code')
-      break
-    case 'invalidPromoCode':
-      setState('promo_code_not_found')
-      break
-    case 'customInfoRequestPermission':
-      customInfoRequestPermission(data.customInfoRequest)
-      break
-    case 'inputCustomInfoRequest':
-      customInfoRequest(data.customInfoRequest)
-      break
-    case 'actionRequiredMaintenance':
-      setState('action_required_maintenance')
-      break
-    case 'cashSlotRemoveBills':
-      setState('cash_slot_remove_bills')
-      break
-    case 'leftoverBillsInCashSlot':
-      setState('leftover_bills_in_cash_slot')
-      break
-    case 'invalidAddress':
-      invalidAddress(data.lnInvoiceTypeError)
-      break
-    case 'externalCompliance':
-      clearTimeout(complianceTimeout)
-      externalCompliance(data.externalComplianceUrl)
-      break
-    default:
-      if (data.action) setState(window.snakecase(data.action))
+      case 'wifiPass':
+        setState('wifi_password')
+        break
+      case 'wifiConnecting':
+        t('wifi-connecting', translate('This could take a few moments.'))
+        setState('wifi_connecting')
+        break
+      case 'wifiConnected':
+        t('wifi-connecting', translate('Connected. Waiting for ticker.'))
+        setState('wifi_connecting') // in case we didn't go through wifi-connecting
+        break
+      case 'pairing':
+        setState('pairing')
+        break
+      case 'pairingError':
+        $('.js-pairing-error').text(data.err)
+        // Give it some time to update text in background
+        setTimeout(function () { setState('pairing_error') }, 500)
+        break
+      case 'booting':
+        if (currentState !== 'maintenance') setState('booting')
+        break
+      case 'idle':
+      case 'fakeIdle':
+        setState('idle')
+        break
+      case 'dualIdle':
+      case 'fakeDualIdle':
+        setState('dual_idle')
+        break
+      case 'registerUsSsn':
+        usSsnKeypad.activate()
+        setState('register_us_ssn')
+        setComplianceTimeout(null, 'finishBeforeSms')
+        break
+      case 'registerPhone':
+        phoneKeypad.activate()
+        setState('register_phone')
+        break
+      case 'registerEmail':
+        emailKeyboard.setConstraint('email', ['#submit-email'])
+        setState('register_email')
+        break
+      case 'securityCode':
+        securityKeypad.activate()
+        setState('security_code')
+        break
+      case 'scanned':
+        isRecycler(data.billValidator)
+          ? setState('insert_first_bills_recycler')
+          : setState('insert_bills')
+        break
+      case 'acceptingFirstBill':
+        $('.js-send-crypto-enable').show()
+        setState('insert_bills')
+        break
+      case 'acceptingBills':
+        $('.blocked-customer-top').hide()
+        setState('insert_more_bills')
+        break
+      case 'acceptingFirstRecyclerBills':
+        $('.js-continue-crypto-enable').show()
+        $('.js-send-crypto-enable').show()
+        setState('insert_first_bills_recycler')
+        break
+      case 'recyclerContinue':
+        disableRecyclerBillButtons()
+        break;
+      case 'acceptingRecyclerBills':
+        enableRecyclerBillButtons()
+        $('.blocked-customer-top').hide()
+        setState('insert_bills_recycler')
+        break
+      case 'acceptingBill':
+        setAccepting(true)
+        break
+      case 'rejectedBill':
+        setAccepting(false)
+        break
+      case 'cryptoTransferPending':
+        setState('sending_coins')
+        break
+      case 'cryptoTransferComplete':
+        setState('completed')
+        break
+      case 'networkDown':
+        setState('trouble')
+        break
+      case 'balanceLow':
+        setState('limit_reached')
+        break
+      case 'insufficientFunds':
+        setState('out_of_coins')
+        break
+      case 'highBill':
+        highBill(data.highestBill, data.reason)
+        break
+      case 'minimumTx':
+        minimumTx(data.lowestBill)
+        break
+      case 'chooseFiat':
+        if (data.isCashInOnlyCoin) {
+          setState('cash_in_only_coin')
+          break
+        }
+        chooseFiat(data.chooseFiat)
+        break
+      case 'deposit':
+        setState('deposit')
+        deposit(data.tx)
+        break
+      case 'rejectedDeposit':
+        setState('deposit_timeout')
+        break
+      case 'fiatReceipt':
+        fiatReceipt(data.tx)
+        break
+      case 'fiatComplete':
+        fiatComplete(data.tx)
+        break
+      case 'restart':
+        setState('restart')
+        break
+      case 'chooseCoin':
+        chooseCoin(data.coins, data.twoWayMode)
+        break
+      case 'smsVerification':
+        smsVerification(data.threshold)
+        break
+      case 'emailVerification':
+        emailVerification(data.threshold);
+        break;
+      case 'permission_id':
+        idVerification()
+        break
+      case 'permission_face_photo':
+        facephotoPermission()
+        break
+      case 'usSsnPermission':
+        usSsnPermission()
+        break
+      case 'externalPermission':
+        externalPermission()
+        break
+      case 'blockedCustomer':
+        blockedCustomer()
+        break
+      case 'insertPromoCode':
+        promoKeyboard.activate()
+        setState('insert_promo_code')
+        break
+      case 'invalidPromoCode':
+        setState('promo_code_not_found')
+        break
+      case 'customInfoRequestPermission':
+        customInfoRequestPermission(data.customInfoRequest)
+        break
+      case 'inputCustomInfoRequest':
+        customInfoRequest(data.customInfoRequest)
+        break
+      case 'actionRequiredMaintenance':
+        setState('action_required_maintenance')
+        break
+      case 'cashSlotRemoveBills':
+        setState('cash_slot_remove_bills')
+        break
+      case 'leftoverBillsInCashSlot':
+        setState('leftover_bills_in_cash_slot')
+        break
+      case 'invalidAddress':
+        invalidAddress(data.lnInvoiceTypeError)
+        break
+      case 'externalCompliance':
+        clearTimeout(complianceTimeout)
+        externalCompliance(data.externalComplianceUrl)
+        break
+      default:
+        if (data.action) setState(window.snakecase(data.action))
+    }
   }
 }
 
@@ -656,6 +688,27 @@ $(document).ready(function () {
     calculateAspectRatio()
     setChooseCoinColors()
   })
+  
+  // Inicjalizacja globalnych zmiennych blokady UI
+  window.global = window.global || {};
+  window.global.uiActionLock = false;
+  uiLocked = false;
+  
+  // Odblokuj UI na wszelki wypadek przy starcie aplikacji
+  if (uiLockTimeout) {
+    clearTimeout(uiLockTimeout);
+    uiLockTimeout = null;
+  }
+  $('body').css('pointer-events', '');
+  
+  // Globalny handler dla wszystkich przycisków, zapobiegający podwójnemu kliknięciu
+  $(document).on('click', 'button, .button, [role="button"]', function(e) {
+    if (uiLocked || (window.global && window.global.uiActionLock)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  });
 
   // Matt's anti-drag hack
   window.onclick =
@@ -664,15 +717,6 @@ $(document).ready(function () {
         window.onmousemove =
           window.onmouseup =
             function () { return false }
-
-  // Globalny handler dla wszystkich przycisków, zapobiegający podwójnemu kliknięciu
-  $(document).on('click', 'button, .button, [role="button"]', function(e) {
-    if (uiLocked) {
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
-    }
-  });
 
   BigNumber.config({ ROUNDING_MODE: BigNumber.ROUND_HALF_EVEN })
 
@@ -1116,101 +1160,98 @@ function targetButton (element) {
 function touchEvent (element, callback) {
   function handler (e) {
     // Jeśli UI jest zablokowane, ignoruj wszystkie kliknięcia
-    if (uiLocked) {
-      e.stopPropagation()
-      e.preventDefault()
-      return
+    if (uiLocked || (window.global && window.global.uiActionLock)) {
+      e.stopPropagation();
+      e.preventDefault();
+      return;
     }
 
     // Zablokuj UI
-    lockUI()
+    lockUI();
 
-    var target = targetButton(e.target)
-    target.classList.add('active')
+    var target = targetButton(e.target);
+    target.classList.add('active');
 
     // Wait for transition to finish
     setTimeout(function () {
-      target.classList.remove('active')
-    }, 300)
+      target.classList.remove('active');
+    }, 300);
 
     setTimeout(function () {
-      callback(e)
-    }, 200)
+      callback(e);
+    }, 200);
 
-    e.stopPropagation()
-    e.preventDefault()
+    e.stopPropagation();
+    e.preventDefault();
   }
 
   if (shouldEnableTouch()) {
-    element.addEventListener('touchstart', handler)
+    element.addEventListener('touchstart', handler);
   }
-  element.addEventListener('mousedown', handler)
+  element.addEventListener('mousedown', handler);
 }
 
 function touchImmediateEvent (element, callback) {
   function handler (e) {
     // Jeśli UI jest zablokowane, ignoruj wszystkie kliknięcia
-    if (uiLocked) {
-      e.stopPropagation()
-      e.preventDefault()
-      return
+    if (uiLocked || (window.global && window.global.uiActionLock)) {
+      e.stopPropagation();
+      e.preventDefault();
+      return;
     }
 
     // Zablokuj UI
-    lockUI()
+    lockUI();
     
-    callback(e)
-    e.stopPropagation()
-    e.preventDefault()
+    callback(e);
+    
+    e.stopPropagation();
+    e.preventDefault();
   }
   if (shouldEnableTouch()) {
-    element.addEventListener('touchstart', handler)
+    element.addEventListener('touchstart', handler);
   }
-  element.addEventListener('mousedown', handler)
+  element.addEventListener('mousedown', handler);
 }
 
 // Funkcja blokująca interfejs użytkownika
 function lockUI() {
+  // Ustaw blokadę UI
   uiLocked = true;
   
-  // Zamiast dodawać klasę, bezpośrednio modyfikujemy styl body
+  // Wspólna zmienna globalna z scanner-newland.js
+  window.global = window.global || {};
+  window.global.uiActionLock = true;
+  
+  // Czysty blok całego interfejsu używając pointer-events
   $('body').css('pointer-events', 'none');
   
-  // Dodaj animację ładowania na górze strony
-  if ($('#ui-lock-indicator').length === 0) {
-    $('body').append('<div id="ui-lock-indicator" style="position: fixed; top: 0; left: 0; right: 0; height: 3px; background: rgba(255, 255, 255, 0.5); z-index: 9999;"></div>');
-    $('#ui-lock-indicator').css('animation', 'lockSlide 1s infinite');
-    
-    // Dodaj style animacji jeśli nie istnieją
-    if ($('#lock-animation-style').length === 0) {
-      $('head').append(
-        '<style id="lock-animation-style">' +
-        '@keyframes lockSlide {' +
-        '  0% { transform: translateX(-100%); }' +
-        '  100% { transform: translateX(100%); }' +
-        '}' +
-        '</style>'
-      );
-    }
-  }
-  
-  // Wyczyść istniejący timeout jeśli istnieje
+  // Odblokuj UI po określonym czasie
   if (uiLockTimeout) {
     clearTimeout(uiLockTimeout);
   }
   
-  // Odblokuj UI po określonym czasie
   uiLockTimeout = setTimeout(function() {
     unlockUI();
-  }, 1000);
+  }, 2000);
 }
 
 // Funkcja odblokowująca interfejs użytkownika
 function unlockUI() {
   uiLocked = false;
+  
+  // Odblokuj także globalną zmienną
+  if (window.global) {
+    window.global.uiActionLock = false;
+  }
+  
+  // Usuń blokadę interfejsu
   $('body').css('pointer-events', '');
-  $('#ui-lock-indicator').remove();
-  uiLockTimeout = null;
+  
+  if (uiLockTimeout) {
+    clearTimeout(uiLockTimeout);
+    uiLockTimeout = null;
+  }
 }
 
 function setupImmediateButton (buttonClass, buttonAction, callback) {

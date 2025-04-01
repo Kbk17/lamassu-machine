@@ -4483,6 +4483,7 @@ button[disabled] {
   opacity: 0.7 !important;
   cursor: not-allowed !important;
   position: relative;
+  pointer-events: none !important;
 }
 
 .button-clicked::after {
