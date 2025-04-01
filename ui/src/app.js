@@ -53,6 +53,9 @@ let customRequirementNumericalKeypad = null
 let customRequirementTextKeyboard = null
 let customRequirementChoiceList = null
 
+// Globalny lock dla operacji związanych z interakcją użytkownika
+global.uiActionLock = global.uiActionLock || false;
+
 var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr',
   'hu', 'it', 'lt', 'nb', 'nl', 'pl', 'pt', 'ro', 'sl', 'sv', 'tr']
 
@@ -73,12 +76,16 @@ function verifyConnection () {
 }
 
 function buttonPressed (button, data) {
-  if (!buttonActive) return
+  if (!buttonActive || global.uiActionLock) return
   wifiKeyboard.deactivate()
   promoKeyboard.deactivate()
   emailKeyboard.deactivate()
   customRequirementTextKeyboard.deactivate()
   buttonActive = false
+  
+  // Aktywuj globalny lock
+  lockUI()
+  
   setTimeout(function () {
     buttonActive = true
     wifiKeyboard.activate()
@@ -1090,8 +1097,14 @@ function targetButton (element) {
 
 function touchEvent (element, callback) {
   function handler (e) {
+    // Sprawdź czy interfejs jest zablokowany
+    if (global.uiActionLock) {
+      e.stopPropagation()
+      e.preventDefault()
+      return
+    }
+    
     var target = targetButton(e.target)
-
     target.classList.add('active')
 
     // Wait for transition to finish
@@ -1115,6 +1128,13 @@ function touchEvent (element, callback) {
 
 function touchImmediateEvent (element, callback) {
   function handler (e) {
+    // Sprawdź czy interfejs jest zablokowany
+    if (global.uiActionLock) {
+      e.stopPropagation()
+      e.preventDefault()
+      return
+    }
+    
     callback(e)
     e.stopPropagation()
     e.preventDefault()
@@ -2305,4 +2325,53 @@ function setReceiptPrint (receiptStatus, smsReceiptStatus) {
 function externalCompliance (url) {
   qrize(url, $('#qr-code-external-validation'), cashDirection === 'cashIn' ? CASH_IN_QR_COLOR : CASH_OUT_QR_COLOR)
   return setScreen('external_compliance')
+}
+
+// Funkcja blokująca UI
+function lockUI() {
+  global.uiActionLock = true;
+  $('button, .button, .cash-button, .wifi-network-button, .circle-button, .square-button').addClass('button-clicked');
+  
+  // Automatycznie odblokowujemy po 1 sekundzie, jeśli backend nie odblokował wcześniej
+  setTimeout(function() {
+    unlockUI();
+  }, 1000);
+}
+
+// Funkcja odblokowująca UI
+function unlockUI() {
+  global.uiActionLock = false;
+  $('button, .button, .cash-button, .wifi-network-button, .circle-button, .square-button').removeClass('button-clicked');
+}
+
+// Zmodyfikowana funkcja cancel do obsługi zarówno kamery jak i skanera
+function cancel() {
+  // Jeśli globalny lock jest aktywny, ignorujemy wszystkie żądania
+  if (global.uiActionLock) {
+    console.log('[SCANNER] UI action lock active, ignoring cancel request');
+    return Promise.resolve(false);
+  }
+  
+  // Aktywujemy globalny lock
+  lockUI();
+  
+  console.log('[SCANNER] Cancelling operation');
+  
+  // Anuluj operację bieżącą
+  if (currentCallback) {
+    const callback = currentCallback;
+    currentCallback = null;
+    callback(null, null);
+  }
+  
+  isRunning = false;
+  
+  // Anuluj operację kamery
+  if (activeStream) {
+    console.log('[SCANNER] Cancelling camera stream');
+    activeStream.destroy();
+    activeStream = null;
+  }
+  
+  return Promise.resolve(true);
 }
