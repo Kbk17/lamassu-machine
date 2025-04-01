@@ -53,6 +53,67 @@ let customRequirementNumericalKeypad = null
 let customRequirementTextKeyboard = null
 let customRequirementChoiceList = null
 
+// Globalny mechanizm blokowania przycisków
+let buttonLockTimestamp = 0;
+const BUTTON_LOCK_DURATION = 1000; // 1 sekunda blokady
+const BUTTON_GROUP_SELECTORS = {
+  'cash-buttons': '.cash-button', 
+  'crypto-buttons': '.choose-coin-button',
+  'action-buttons': '.action-button',
+  'all-buttons': 'button, .button'
+};
+
+// Dodaj style CSS dla zablokowanych przycisków
+const buttonLockStyles = document.createElement('style');
+buttonLockStyles.textContent = `
+  .button-disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+  }
+  .button-selected {
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4) !important;
+    transform: scale(0.97) !important;
+  }
+`;
+document.head.appendChild(buttonLockStyles);
+
+// Funkcja do blokowania przycisków
+function lockButtons(clickedButton, groupSelector) {
+  if (!clickedButton) return;
+  
+  // Ustaw timestamp blokady
+  buttonLockTimestamp = Date.now();
+  
+  // Pobierz selektor grupy lub ustaw domyślny
+  const selector = BUTTON_GROUP_SELECTORS[groupSelector] || BUTTON_GROUP_SELECTORS['all-buttons'];
+  
+  // Znajdź przyciski do zablokowania
+  const buttons = $(selector).not(clickedButton);
+  
+  // Zaznacz kliknięty przycisk
+  $(clickedButton).addClass('button-selected');
+  
+  // Zablokuj pozostałe przyciski
+  buttons.addClass('button-disabled');
+  
+  // Odblokuj przyciski po określonym czasie
+  setTimeout(() => {
+    unlockButtons();
+  }, BUTTON_LOCK_DURATION);
+}
+
+// Funkcja do odblokowywania przycisków
+function unlockButtons() {
+  $('.button-selected').removeClass('button-selected');
+  $('.button-disabled').removeClass('button-disabled');
+}
+
+// Funkcja sprawdzająca, czy przyciski są zablokowane
+function areButtonsLocked() {
+  return (Date.now() - buttonLockTimestamp) < BUTTON_LOCK_DURATION;
+}
+
 var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr',
   'hu', 'it', 'lt', 'nb', 'nl', 'pl', 'pt', 'ro', 'sl', 'sv', 'tr']
 
@@ -1090,39 +1151,61 @@ function targetButton (element) {
 
 function touchEvent (element, callback) {
   function handler (e) {
-    var target = targetButton(e.target)
+    // Sprawdź, czy przyciski są zablokowane
+    if (areButtonsLocked()) {
+      console.log('Buttons are locked, ignoring click');
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+    
+    var target = targetButton(e.target);
+    
+    // Blokuj wszystkie przyciski i zaznacz kliknięty
+    lockButtons(target, element.id === 'crypto-buttons' ? 'crypto-buttons' : 'all-buttons');
 
-    target.classList.add('active')
+    target.classList.add('active');
 
     // Wait for transition to finish
     setTimeout(function () {
-      target.classList.remove('active')
-    }, 300)
+      target.classList.remove('active');
+    }, 300);
 
     setTimeout(function () {
-      callback(e)
-    }, 200)
+      callback(e);
+    }, 200);
 
-    e.stopPropagation()
-    e.preventDefault()
+    e.stopPropagation();
+    e.preventDefault();
   }
 
   if (shouldEnableTouch()) {
-    element.addEventListener('touchstart', handler)
+    element.addEventListener('touchstart', handler);
   }
-  element.addEventListener('mousedown', handler)
+  element.addEventListener('mousedown', handler);
 }
 
 function touchImmediateEvent (element, callback) {
   function handler (e) {
-    callback(e)
-    e.stopPropagation()
-    e.preventDefault()
+    // Sprawdź, czy przyciski są zablokowane
+    if (areButtonsLocked()) {
+      console.log('Buttons are locked, ignoring immediate click');
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+    
+    // Blokuj wszystkie przyciski
+    lockButtons(targetButton(e.target), 'all-buttons');
+    
+    callback(e);
+    e.stopPropagation();
+    e.preventDefault();
   }
   if (shouldEnableTouch()) {
-    element.addEventListener('touchstart', handler)
+    element.addEventListener('touchstart', handler);
   }
-  element.addEventListener('mousedown', handler)
+  element.addEventListener('mousedown', handler);
 }
 
 function setupImmediateButton (buttonClass, buttonAction, callback) {
