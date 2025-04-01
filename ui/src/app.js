@@ -244,6 +244,19 @@ function setState(state, delay) {
   // Odblokuj przyciski natychmiast przy zmianie stanu
   unlockButtons();
 
+  // Resetuj flagę używania kamery przy rozpoczęciu nowej transakcji
+  if (state === 'idle' || state === 'choose_coin' || state === 'terms_screen') {
+    try {
+      // Sprawdź czy scanner-newland został zaimportowany w odpowiednim miejscu
+      if (websocket) {
+        console.log('Resetting camera locks for new transaction');
+        websocket.send(JSON.stringify({ button: 'resetCameraLocks' }));
+      }
+    } catch (err) {
+      console.log('Error resetting camera locks:', err);
+    }
+  }
+
   wifiKeyboard.reset();
   promoKeyboard.reset();
   emailKeyboard.reset();
