@@ -1010,9 +1010,27 @@ function targetButton (element) {
   return targetButton(element.parentNode)
 }
 
+let coinButtonsLocked = false;
+
 function touchEvent (element, callback) {
   function handler (e) {
     var target = targetButton(e.target)
+    
+    // Dodajemy specjalną obsługę dla przycisków wyboru kryptowaluty
+    if (target.classList.contains('choose-coin-button') || 
+        target.closest('.choose-coin-button') !== null) {
+      if (coinButtonsLocked) {
+        e.stopPropagation()
+        e.preventDefault()
+        return
+      }
+      
+      // Blokujemy przyciski kryptowalut
+      coinButtonsLocked = true
+      setTimeout(function() {
+        coinButtonsLocked = false
+      }, 1000) // Blokada na 1 sekundę
+    }
 
     target.classList.add('active')
 
