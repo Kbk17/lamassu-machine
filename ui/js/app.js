@@ -1071,6 +1071,72 @@ $(document).ready(function () {
 
   buildCassetteButtonEvents();
   initDebug();
+
+  // Uniwersalny mechanizm blokowania przycisków 
+  function initButtonProtection() {
+    // Lista selektorów przycisków, które chcemy zabezpieczyć
+    const criticalButtons = [
+      '.js-terms-accept-button', 
+      '.js-terms-cancel-button',
+      '.js-start-button',
+      '.js-cancel-button',
+      '.js-choose-fiat-button',
+      '.js-send-button',
+      '.js-id-verify-button',
+      '.js-id-cancel-button'
+      // Możesz dodać więcej selektorów według potrzeb
+    ];
+    
+    // Łączymy wszystkie selektory w jeden string oddzielony przecinkami
+    const buttonSelectors = criticalButtons.join(', ');
+    
+    // Jeden handler dla wszystkich przycisków
+    $(document).on('click', buttonSelectors, function(e) {
+      // Jeśli przycisk jest już zablokowany, zatrzymaj akcję
+      if ($(this).hasClass('button-clicked') || $(this).prop('disabled')) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Przycisk już zablokowany, ignoruję kliknięcie');
+        return false;
+      }
+      
+      // Blokujemy przycisk wizualnie i funkcjonalnie
+      $(this).addClass('button-clicked');
+      
+      // Zapisujemy oryginalną treść przycisku jeśli chcemy dodać wskaźnik ładowania
+      const originalText = $(this).html();
+      $(this).data('original-text', originalText);
+      
+      // Opcjonalnie: dodajemy wskaźnik ładowania
+      // $(this).html('<span class="loading-dot">⋯</span> ' + originalText);
+      
+      console.log('Przycisk zablokowany: ' + ($(this).attr('id') || $(this).text()));
+      
+      // Automatycznie zwalniamy blokadę wizualną po czasie
+      // (ale nie odblokowujemy przycisku - tym zajmie się logika aplikacji)
+      setTimeout(() => {
+        // Przywracamy oryginalny tekst
+        if ($(this).data('original-text')) {
+          $(this).html($(this).data('original-text'));
+        }
+        
+        // Ostatecznie zdejmujemy blokadę po dłuższym czasie, 
+        // na wypadek gdyby logika aplikacji nie odblokował przycisku
+        setTimeout(() => {
+          $(this).removeClass('button-clicked');
+          console.log('Automatyczne zwolnienie blokady przycisku po czasie bezpieczeństwa');
+        }, 5000);
+      }, 1500);
+    });
+    
+    console.log('Inicjalizacja ochrony przycisków zakończona');
+  }
+
+  // Dodajemy inicjalizację po załadowaniu dokumentu
+  $(document).ready(function() {
+    // ... existing code ...
+    initButtonProtection();
+  });
 });
 
 function targetButton(element) {

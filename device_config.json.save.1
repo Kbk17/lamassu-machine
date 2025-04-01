@@ -1,0 +1,48 @@
+{
+ "cryptomatMaker": "genmega",
+ "cryptomatModel": "gmuk1",
+  "brain": {
+    "dataPath": "data",
+    "wifiDisabled": true
+  },
+  "kioskPrinter": {
+    "model": "genmega",
+    "address": "/dev/ttyS2"
+  },
+  "compliance": {
+    "paperWallet": false
+  },
+  "frontFacingCamera": {
+    "device":"/dev/ttyS0"
+  },
+  "scanner": {
+    "device": "/dev/"
+  },
+  "wifi": {
+    "wpa": {
+      "socket": null
+    }
+  },
+  "billValidator": {
+    "deviceType": "bnrAdvance",
+    "rs232": {
+      "device": "/dev/ttyUSB1",
+      "baudRate": 9600
+    },
+    "currency": "PLN",
+    }
+
+  "billDispenser": {
+    "model": "genmega",
+    "device": "/dev/ttyS3",
+    "license": "",
+    "cassettes": 2
+  },
+  "updater": {
+    "caFile": "/opt/certs/lamassu.pem",
+    "extractor": {
+      "lamassuPubKeyFile": "/opt/certs/lamassu.pub.key"
+    },
+    "packageJsonDir": "/opt/lamassu-machine"
+  }
+}
