@@ -55,7 +55,7 @@ let customRequirementChoiceList = null
 
 // Globalny mechanizm blokowania przycisków
 let buttonLockTimestamp = 0;
-const BUTTON_LOCK_DURATION = 500; // Zmniejsz czas blokady do 500ms
+const BUTTON_LOCK_DURATION = 2000; // 2 sekundy blokady
 const BUTTON_GROUP_SELECTORS = {
   'cash-buttons': '.cash-button', 
   'crypto-buttons': '.choose-coin-button',
@@ -82,36 +82,49 @@ document.head.appendChild(buttonLockStyles);
 function lockButtons(clickedButton, groupSelector) {
   if (!clickedButton) return;
   
+  console.log('Locking buttons, clicked:', clickedButton);
+  
   // Ustaw timestamp blokady
   buttonLockTimestamp = Date.now();
   
-  // Pobierz selektor grupy lub ustaw domyślny
-  const selector = BUTTON_GROUP_SELECTORS[groupSelector] || BUTTON_GROUP_SELECTORS['all-buttons'];
+  // Zablokuj WSZYSTKIE przyciski na stronie
+  $('button, .button, .cash-button, .choose-coin-button, .filled-action-button, .circle-button').each(function() {
+    const btn = $(this);
+    
+    // Nie blokuj przycisków nawigacyjnych określonych w aplikacji
+    const isNavButton = 
+      btn.hasClass('nav-button') || 
+      btn.attr('id') === 'completed_viewport' ||
+      btn.attr('id') === 'fiat_receipt_viewport' ||
+      btn.attr('id') === 'fiat_complete_viewport';
+      
+    if (!isNavButton) {
+      // Dodaj klasę z CSS blokującą przycisk
+      btn.addClass('button-clicked');
+    }
+  });
   
-  // Znajdź przyciski do zablokowania
-  const buttons = $(selector).not(clickedButton);
-  
-  // Zaznacz kliknięty przycisk
-  $(clickedButton).addClass('button-selected');
-  
-  // Zablokuj pozostałe przyciski
-  buttons.addClass('button-disabled');
+  // Oznacz specjalnie kliknięty przycisk
+  if (clickedButton) {
+    $(clickedButton).addClass('button-selected');
+  }
   
   // Odblokuj przyciski po określonym czasie
   setTimeout(() => {
     unlockButtons();
-  }, BUTTON_LOCK_DURATION);
+  }, 2000); // Zwiększam czas blokady do 2 sekund
 }
 
 // Funkcja do odblokowywania przycisków
 function unlockButtons() {
+  console.log('Unlocking buttons');
+  $('.button-clicked').removeClass('button-clicked');
   $('.button-selected').removeClass('button-selected');
-  $('.button-disabled').removeClass('button-disabled');
 }
 
 // Funkcja sprawdzająca, czy przyciski są zablokowane
 function areButtonsLocked() {
-  return (Date.now() - buttonLockTimestamp) < BUTTON_LOCK_DURATION;
+  return (Date.now() - buttonLockTimestamp) < BUTTON_LOCK_DURATION || $('.button-clicked').length > 0;
 }
 
 var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr',
@@ -1165,17 +1178,10 @@ function touchEvent (element, callback) {
     
     var target = targetButton(e.target);
     
-    // Nie blokuj przycisków dla specjalnych elementów nawigacyjnych
-    const isNavigationButton = $(target).hasClass('nav-button') || 
-                              ($(target).attr('id') === 'completed_viewport') ||
-                              ($(target).attr('id') === 'cash-out-button') ||
-                              element.id === 'languages';
-    
-    if (!isNavigationButton) {
-      // Blokuj wszystkie przyciski i zaznacz kliknięty tylko dla elementów niebędących nawigacją
-      lockButtons(target, element.id === 'crypto-buttons' ? 'crypto-buttons' : 'all-buttons');
-    }
+    // Blokuj wszystkie przyciski i zaznacz kliknięty
+    lockButtons(target, 'all-buttons');
 
+    // Dodaj klasę active tylko dla wizualnego efektu (krótkotrwałego)
     target.classList.add('active');
 
     // Wait for transition to finish
@@ -1183,6 +1189,7 @@ function touchEvent (element, callback) {
       target.classList.remove('active');
     }, 300);
 
+    // Wykonaj callback z pewnym opóźnieniem, aby dać czas na wizualne efekty
     setTimeout(function () {
       callback(e);
     }, 200);
@@ -1207,16 +1214,10 @@ function touchImmediateEvent (element, callback) {
       return;
     }
     
-    // Nie blokuj przycisków dla niektórych przycisków natychmiastowych
-    const isSpecialButton = element.id === 'completed_viewport' || 
-                          element.id === 'fiat_receipt_viewport' || 
-                          element.id === 'fiat_complete_viewport';
+    // Blokuj wszystkie przyciski
+    lockButtons(targetButton(e.target), 'all-buttons');
     
-    if (!isSpecialButton) {
-      // Blokuj wszystkie przyciski
-      lockButtons(targetButton(e.target), 'all-buttons');
-    }
-    
+    // Wykonaj callback natychmiast
     callback(e);
     e.stopPropagation();
     e.preventDefault();
