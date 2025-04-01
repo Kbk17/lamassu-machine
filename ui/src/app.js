@@ -53,15 +53,8 @@ let customRequirementNumericalKeypad = null
 let customRequirementTextKeyboard = null
 let customRequirementChoiceList = null
 
-// Globalny mechanizm blokowania przycisków
-let buttonLockTimestamp = 0;
-const BUTTON_LOCK_DURATION = 2000; // 2 sekundy blokady
-const BUTTON_GROUP_SELECTORS = {
-  'cash-buttons': '.cash-button', 
-  'crypto-buttons': '.choose-coin-button',
-  'action-buttons': '.action-button',
-  'all-buttons': 'button, .button'
-};
+// Globalny mechanizm blokowania przycisków - prosty, bez niepotrzebnych komplikacji
+let interfaceLocked = false;
 
 // Dodaj style CSS dla zablokowanych przycisków
 const buttonLockStyles = document.createElement('style');
@@ -78,25 +71,34 @@ buttonLockStyles.textContent = `
 `;
 document.head.appendChild(buttonLockStyles);
 
-// Funkcja do blokowania przycisków
-function lockButtons(clickedButton, groupSelector) {
-  if (!clickedButton) return;
+// Dodaj na początku pliku, gdzie są zdefiniowane zmienne globalne
+var lastClickedButtonId = null;
+var buttonCooldownActive = false;
+var GLOBAL_BUTTON_COOLDOWN = 3000; // 3 sekundy globalnej blokady
+
+// Dodajmy prostą zmienną do kontroli stanu interfejsu
+var userInterfaceLocked = false;
+
+// Funkcja do blokowania przycisków - prosta implementacja
+function lockButtons(clickedButton) {
+  // Jeśli już zablokowane, nie rób nic
+  if (interfaceLocked) return;
   
-  console.log('Locking buttons, clicked:', clickedButton);
+  // Ustaw flagę blokady
+  interfaceLocked = true;
+  console.log('Locking UI, clicked button:', clickedButton ? clickedButton.id || 'unnamed' : 'unknown');
   
-  // Ustaw timestamp blokady
-  buttonLockTimestamp = Date.now();
-  
-  // Zablokuj WSZYSTKIE przyciski na stronie
+  // Zablokuj wszystkie przyciski oprócz wyjątków
   $('button, .button, .cash-button, .choose-coin-button, .filled-action-button, .circle-button').each(function() {
     const btn = $(this);
     
-    // Nie blokuj przycisków nawigacyjnych określonych w aplikacji
+    // Wyjątki - przyciski nawigacyjne, które zawsze powinny działać
     const isNavButton = 
       btn.hasClass('nav-button') || 
       btn.attr('id') === 'completed_viewport' ||
       btn.attr('id') === 'fiat_receipt_viewport' ||
-      btn.attr('id') === 'fiat_complete_viewport';
+      btn.attr('id') === 'fiat_complete_viewport' ||
+      btn.attr('id') === 'printer-back-to-home';
       
     if (!isNavButton) {
       // Dodaj klasę z CSS blokującą przycisk
@@ -108,1069 +110,26 @@ function lockButtons(clickedButton, groupSelector) {
   if (clickedButton) {
     $(clickedButton).addClass('button-selected');
   }
-  
-  // Odblokuj przyciski po określonym czasie
-  setTimeout(() => {
-    unlockButtons();
-  }, 2000); // Zwiększam czas blokady do 2 sekund
 }
 
 // Funkcja do odblokowywania przycisków
 function unlockButtons() {
-  console.log('Unlocking buttons');
+  interfaceLocked = false;
+  console.log('Unlocking UI');
   $('.button-clicked').removeClass('button-clicked');
   $('.button-selected').removeClass('button-selected');
 }
 
 // Funkcja sprawdzająca, czy przyciski są zablokowane
 function areButtonsLocked() {
-  return (Date.now() - buttonLockTimestamp) < BUTTON_LOCK_DURATION || $('.button-clicked').length > 0;
+  return interfaceLocked;
 }
 
-var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr',
-  'hu', 'it', 'lt', 'nb', 'nl', 'pl', 'pt', 'ro', 'sl', 'sv', 'tr']
-
-function connect () {
-  console.log(`ws://${HOST}:${PORT}/`)
-  websocket = new WebSocket(`ws://${HOST}:${PORT}/`)
-  websocket.onmessage = function (event) {
-    var data = $.parseJSON(event.data)
-    processData(data)
-  }
-  websocket.onerror = err => console.log(err)
-}
-
-function verifyConnection () {
-  if (websocket.readyState === websocket.CLOSED) {
-    connect()
-  }
-}
-
-function buttonPressed (button, data) {
-  if (!buttonActive) return
-  wifiKeyboard.deactivate()
-  promoKeyboard.deactivate()
-  emailKeyboard.deactivate()
-  customRequirementTextKeyboard.deactivate()
-  buttonActive = false
-  
-  // Odblokuj przyciski gdy wykonywane jest działanie
-  unlockButtons()
-  
-  setTimeout(function () {
-    buttonActive = true
-    wifiKeyboard.activate()
-    promoKeyboard.activate()
-    emailKeyboard.activate()
-    customRequirementTextKeyboard.activate()
-  }, 300)
-  var res = { button: button }
-  if (data || data === null) res.data = data
-  if (websocket) websocket.send(JSON.stringify(res))
-}
-
-const displayLN = 'Lightning Network'
-const displayBTC = 'Bitcoin<br>(LN)'
-const LN = 'LN'
-const BTC = 'BTC'
-
-function processData (data) {
-  if (data.localeInfo) setLocaleInfo(data.localeInfo)
-  if (data.locale) setLocale(data.locale)
-  if (data.supportedCoins) setCoins(data.supportedCoins)
-  if (!locale) return
-  if (data.fiatCode) setFiatCode(data.fiatCode)
-  if (data.rates) setExchangeRate(data.rates)
-  if (data.buyerAddress) setBuyerAddress(data.buyerAddress)
-  if (data.credit) {
-    var lastBill = data.action === 'rejectedBill' ? null : data.credit.lastBill
-    setCredit(data.credit, lastBill)
-  }
-  if (data.tx) setTx(data.tx)
-  if (data.wifiList) setWifiList(data.wifiList)
-  if (data.wifiSsid) setWifiSsid(data.wifiSsid)
-  if (data.sendOnly) sendOnly(data.reason)
-  if (data.fiatCredit) fiatCredit(data.fiatCredit)
-  if (data.depositInfo) setDepositAddress(data.depositInfo)
-  if (data.version) setVersion(data.version)
-  if (data.cassettes) buildCassetteButtons(data.cassettes, NUMBER_OF_BUTTONS)
-  if (data.sent && data.total) setPartialSend(data.sent, data.total)
-  if (data.readingBills) readingBills(data.readingBills)
-  if (data.cryptoCode) translateCoin(data.cryptoCode)
-  if (data.tx && data.tx.cashInFee) setFixedFee(data.tx.cashInFee)
-  if (data.terms) setTermsScreen(data.terms)
-  if (data.dispenseBatch) dispenseBatch(data.dispenseBatch)
-  if (data.direction) setDirection(data.direction)
-  if (data.operatorInfo) setOperatorInfo(data.operatorInfo)
-  if (data.hardLimit) setHardLimit(data.hardLimit)
-  if (data.cryptomatModel) setCryptomatModel(data.cryptomatModel)
-  if (data.areThereAvailablePromoCodes !== undefined) setAvailablePromoCodes(data.areThereAvailablePromoCodes)
-
-  if (data.tx && data.tx.discount) setCurrentDiscount(data.tx.discount)
-  if (data.receiptStatus) setReceiptPrint(data.receiptStatus, null)
-  if (data.smsReceiptStatus) setReceiptPrint(null, data.smsReceiptStatus)
-
-  if (data.context) {
-    $('.js-context').hide()
-    $('.js-context-' + data.context).show()
-  }
-
-  const isRecycler = billValidator => {
-    return billValidator === 'HCM2'
-  }
-
-  switch (data.action) {
-    case 'wifiList':
-      if (cryptomatModel === 'douro1') {
-        setState('wifi')
-      } else {
-        setState('connect_ethernet')
-      }
-      break
-    case 'wifiPass':
-      setState('wifi_password')
-      break
-    case 'wifiConnecting':
-      t('wifi-connecting', translate('This could take a few moments.'))
-      setState('wifi_connecting')
-      break
-    case 'wifiConnected':
-      t('wifi-connecting', translate('Connected. Waiting for ticker.'))
-      setState('wifi_connecting') // in case we didn't go through wifi-connecting
-      break
-    case 'pairing':
-      setState('pairing')
-      break
-    case 'pairingError':
-      $('.js-pairing-error').text(data.err)
-      // Give it some time to update text in background
-      setTimeout(function () { setState('pairing_error') }, 500)
-      break
-    case 'booting':
-      if (currentState !== 'maintenance') setState('booting')
-      break
-    case 'idle':
-    case 'fakeIdle':
-      setState('idle')
-      break
-    case 'dualIdle':
-    case 'fakeDualIdle':
-      setState('dual_idle')
-      break
-    case 'registerUsSsn':
-      usSsnKeypad.activate()
-      setState('register_us_ssn')
-      setComplianceTimeout(null, 'finishBeforeSms')
-      break
-    case 'registerPhone':
-      phoneKeypad.activate()
-      setState('register_phone')
-      break
-    case 'registerEmail':
-      emailKeyboard.setConstraint('email', ['#submit-email'])
-      setState('register_email')
-      break
-    case 'securityCode':
-      securityKeypad.activate()
-      setState('security_code')
-      break
-    case 'scanned':
-      isRecycler(data.billValidator)
-        ? setState('insert_first_bills_recycler')
-        : setState('insert_bills')
-      break
-    case 'acceptingFirstBill':
-      $('.js-send-crypto-enable').show()
-      setState('insert_bills')
-      break
-    case 'acceptingBills':
-      $('.blocked-customer-top').hide()
-      setState('insert_more_bills')
-      break
-    case 'acceptingFirstRecyclerBills':
-      $('.js-continue-crypto-enable').show()
-      $('.js-send-crypto-enable').show()
-      setState('insert_first_bills_recycler')
-      break
-    case 'recyclerContinue':
-      disableRecyclerBillButtons()
-      break;
-    case 'acceptingRecyclerBills':
-      enableRecyclerBillButtons()
-      $('.blocked-customer-top').hide()
-      setState('insert_bills_recycler')
-      break
-    case 'acceptingBill':
-      setAccepting(true)
-      break
-    case 'rejectedBill':
-      setAccepting(false)
-      break
-    case 'cryptoTransferPending':
-      setState('sending_coins')
-      break
-    case 'cryptoTransferComplete':
-      setState('completed')
-      break
-    case 'networkDown':
-      setState('trouble')
-      break
-    case 'balanceLow':
-      setState('limit_reached')
-      break
-    case 'insufficientFunds':
-      setState('out_of_coins')
-      break
-    case 'highBill':
-      highBill(data.highestBill, data.reason)
-      break
-    case 'minimumTx':
-      minimumTx(data.lowestBill)
-      break
-    case 'chooseFiat':
-      if (data.isCashInOnlyCoin) {
-        setState('cash_in_only_coin')
-        break
-      }
-      chooseFiat(data.chooseFiat)
-      break
-    case 'deposit':
-      setState('deposit')
-      deposit(data.tx)
-      break
-    case 'rejectedDeposit':
-      setState('deposit_timeout')
-      break
-    case 'fiatReceipt':
-      fiatReceipt(data.tx)
-      break
-    case 'fiatComplete':
-      fiatComplete(data.tx)
-      break
-    case 'restart':
-      setState('restart')
-      break
-    case 'chooseCoin':
-      chooseCoin(data.coins, data.twoWayMode)
-      break
-    case 'smsVerification':
-      smsVerification(data.threshold)
-      break
-    case 'emailVerification':
-      emailVerification(data.threshold);
-      break;
-    case 'permission_id':
-      idVerification()
-      break
-    case 'permission_face_photo':
-      facephotoPermission()
-      break
-    case 'usSsnPermission':
-      usSsnPermission()
-      break
-    case 'externalPermission':
-      externalPermission()
-      break
-    case 'blockedCustomer':
-      blockedCustomer()
-      break
-    case 'insertPromoCode':
-      promoKeyboard.activate()
-      setState('insert_promo_code')
-      break
-    case 'invalidPromoCode':
-      setState('promo_code_not_found')
-      break
-    case 'customInfoRequestPermission':
-      customInfoRequestPermission(data.customInfoRequest)
-      break
-    case 'inputCustomInfoRequest':
-      customInfoRequest(data.customInfoRequest)
-      break
-    case 'actionRequiredMaintenance':
-      setState('action_required_maintenance')
-      break
-    case 'cashSlotRemoveBills':
-      setState('cash_slot_remove_bills')
-      break
-    case 'leftoverBillsInCashSlot':
-      setState('leftover_bills_in_cash_slot')
-      break
-    case 'invalidAddress':
-      invalidAddress(data.lnInvoiceTypeError)
-      break
-    case 'externalCompliance':
-      clearTimeout(complianceTimeout)
-      externalCompliance(data.externalComplianceUrl)
-      break
-    default:
-      if (data.action) setState(window.snakecase(data.action))
-  }
-}
-
-function translate (data, fetchArgs) {
-  if (data === "")
-    return data
-
-  try {
-    return fetchArgs
-      ? locale.translate(data).fetch(...fetchArgs)
-      : locale.translate(data).fetch()
-  } catch (error) {
-    if (!defaultLocale) console.error('Error while translating: ', error)
-    else {
-      try {
-        return fetchArgs
-          ? defaultLocale.translate(data).fetch(...fetchArgs)
-          : defaultLocale.translate(data).fetch()
-      } catch (e) {
-        console.error('Error while translating: ', e)
-        return data
-      }
-    }
-  }
-}
-
-function facephotoPermission () {
-  setComplianceTimeout(null, 'finishBeforeSms')
-  setScreen('permission_face_photo')
-}
-
-function usSsnPermission () {
-  setComplianceTimeout(null, 'finishBeforeSms')
-  setScreen('us_ssn_permission')
-}
-
-function externalPermission () {
-  setComplianceTimeout(null, 'finishBeforeSms')
-  setScreen('external_permission')
-}
-
-function customInfoRequestPermission (customInfoRequest) {
-  $('#custom-screen1-title').text(customInfoRequest.screen1.title)
-  $('#custom-screen1-text').text(customInfoRequest.screen1.text)
-  setComplianceTimeout(null, 'finishBeforeSms')
-  setScreen('custom_permission')
-}
-
-function setComplianceTimeout (interval, complianceButton) {
-  clearTimeout(complianceTimeout)
-
-  if (interval === 0) {
-    return
-  }
-
-  complianceTimeout = setTimeout(function () {
-    buttonPressed(complianceButton)
-  }, interval == null ? 60000 : interval)
-}
-
-function invalidAddress (lnInvoiceTypeError) {
-  if (lnInvoiceTypeError) {
-    $('#invalid-address').hide()
-    $('#invalid-invoice').show()
-  } else {
-    $('#invalid-invoice').hide()
-    $('#invalid-address').show()
-  }
-  setState('invalid_address')
-}
-
-function customInfoRequest (customInfoRequest) {
-  switch (customInfoRequest.input.type) {
-    case 'numerical':
-      $('#custom-screen2-numerical-title').text(customInfoRequest.screen2.title)
-      $('#custom-screen2-numerical-text').text(customInfoRequest.screen2.text)
-      customRequirementNumericalKeypad.setOpts({
-        type: 'custom',
-        constraint: customInfoRequest.input.constraintType,
-        maxLength: customInfoRequest.input.numDigits
-      })
-      customRequirementNumericalKeypad.activate()
-      setState('custom_permission_screen2_numerical')
-      setScreen('custom_permission_screen2_numerical')
-      setComplianceTimeout(null, 'cancelCustomInfoRequest')
-      break
-    case 'text':
-      $('#custom-requirement-text-label1').text(customInfoRequest.input.label1)
-      $('#custom-requirement-text-label2').text(customInfoRequest.input.label2)
-      $('#previous-text-requirement').hide()
-      $('#submit-text-requirement').hide()
-      $('#next-text-requirement').hide()
-      $('#optional-text-field-2').hide()
-      $('.key.backspace.standard-backspace-key').removeClass('backspace-margin-left-override')
-      $('.custom-info-request-space-key').show()
-      // set type of constraint and buttons where that constraint should apply to disable/ enable
-      customRequirementTextKeyboard.setConstraint(customInfoRequest.input.constraintType, ['#submit-text-requirement'])
-      if (customInfoRequest.input.constraintType === 'spaceSeparation') {
-        $('#optional-text-field-2').show()
-        $('.key.backspace.standard-backspace-key').addClass('backspace-margin-left-override')
-        $('.custom-info-request-space-key').hide()
-        customRequirementTextKeyboard.setConstraint(customInfoRequest.input.constraintType, ['#next-text-requirement'])
-      }
-      setState('custom_permission_screen2_text')
-      setScreen('custom_permission_screen2_text')
-      setComplianceTimeout(null, 'cancelCustomInfoRequest')
-      break
-    case 'choiceList':
-      $('#custom-screen2-choiceList-title').text(customInfoRequest.screen2.title)
-      $('#custom-screen2-choiceList-text').text(customInfoRequest.screen2.text)
-      customRequirementChoiceList.replaceChoices(customInfoRequest.input.choiceList, customInfoRequest.input.constraintType)
-      setState('custom_permission_screen2_choiceList')
-      setScreen('custom_permission_screen2_choiceList')
-      setComplianceTimeout(null, 'cancelCustomInfoRequest')
-      break
-    default:
-      return blockedCustomer()
-  }
-}
-
-function idVerification () {
-  setComplianceTimeout(null, 'finishBeforeSms')
-  setScreen('permission_id')
-}
-
-function smsVerification (threshold) {
-  console.log('sms threshold to be displayed', threshold)
-  setComplianceTimeout(null, 'finishBeforeSms')
-  setScreen('sms_verification')
-}
-
-function emailVerification(threshold) {
-  setComplianceTimeout(null, 'finishBeforeSms');
-  setScreen('email_verification');
-}
-
-function blockedCustomer () {
-  return setScreen('blocked_customer')
-}
-
-function chooseCoin (coins, twoWayMode) {
-  if (twoWayMode) {
-    $('.choose_coin_state').removeClass('choose-coin-cash-in').addClass('choose-coin-two-way')
-  } else {
-    $('.choose_coin_state').removeClass('choose-coin-two-way').addClass('choose-coin-cash-in')
-  }
-
-  isTwoWay = twoWayMode
-  setChooseCoinColors()
-  // setupAnimation(twoWayMode, aspectRatio800)
-
-  const defaultCoin = coins[0]
-
-  currentCryptoCode = defaultCoin.cryptoCode
-  currentCoin = defaultCoin
-  currentCoins = coins.slice(0)
-
-  setCryptoBuy(defaultCoin)
-  setCryptoSell(defaultCoin)
-
-  setupCoinsButtons(coins, currentCryptoCode)
-
-  setState('choose_coin')
-}
-
-function openLanguageDropdown () {
-  $('#language-dropdown-toggle').addClass('hide')
-  $('#languages').removeClass('hide')
-  $('#language-overlay').removeClass('hide')
-}
-
-function closeLanguageDropdown () {
-  $('#language-dropdown-toggle').removeClass('hide')
-  $('#languages').addClass('hide')
-  $('#language-overlay').addClass('hide')
-}
-
-function openCoinDropdown () {
-  $('#crypto-dropdown-toggle').addClass('hide')
-  $('#crypto-overlay').removeClass('hide')
-  $('#cryptos').removeClass('hide')
-}
-
-function closeCoinDropdown () {
-  $('#crypto-dropdown-toggle').removeClass('hide')
-  $('#crypto-overlay').addClass('hide')
-  $('#cryptos').addClass('hide')
-}
-
-function setupCoinsButtons () {
-  $('.crypto-buttons').empty()
-  closeCoinDropdown()
-
-  let coins = currentCoins.slice()
-  let dropdownCoins = []
-
-  if (coins.length === 1) return
-
-  const showMoreButton = coins.length > 4
-  if (showMoreButton) {
-    $('crypto-dropdown-toggle').removeClass('hide')
-    dropdownCoins = coins.slice(3)
-    coins = coins.slice(0, 3)
-  } else {
-    $('crypto-dropdown-toggle').addClass('hide')
-  }
-
-  coins.forEach(function (coin) {
-    const activeClass = coin.cryptoCode === currentCryptoCode ? 'choose-coin-button-active' : ''
-    const el = `<div class="choose-coin-button h4 coin-${coin.cryptoCode.toLowerCase()} ${activeClass}" data-crypto-code="${coin.cryptoCode}">
-      ${coin.display}
-      <span class="choose-coin-svg-wrapper">
-        <svg xmlns="http://www.w3.org/2000/svg" width="52" height="8" viewBox="0 0 52 8">
-          <path fill="none" fill-rule="evenodd" stroke="#FFF" stroke-linecap="round" stroke-width="8" d="M4 4h44"/>
-        </svg>
-      </span>
-    </div>`
-    $('.crypto-buttons').append(el)
-  })
-  if (showMoreButton) {
-    $('.crypto-buttons').append(`
-      <div class="choose-coin-button h4" data-more="true">
-        <div id="crypto-dropdown-toggle" data-more="true">
-          <span class="js-i18n">${translate('More')}</span>
-          <span class="choose-coin-svg-wrapper">
-            <svg xmlns="http://www.w3.org/2000/svg" width="52" height="8" viewBox="0 0 52 8">
-              <path fill="none" fill-rule="evenodd" stroke="#FFF" stroke-linecap="round" stroke-width="8" d="M4 4h44"/>
-            </svg>
-          </span>
-        </div>
-        <div id="cryptos" class="dropdown hide"></div>
-      </div>
-    `)
-    dropdownCoins.forEach(coin => {
-      const el = `<button class="h4 sapphire button small-action-button coin-${coin.cryptoCode.toLowerCase()}"
-        data-crypto-code="${coin.cryptoCode}">${coin.display}</button>`
-      $('#cryptos').append(el)
-    })
-    const el = `<button class="h4 sapphire button small-action-button js-i18n" data-less="true">${translate('Less')}</button>`
-    $('#cryptos').append(el)
-    // As we add buttons 'more' and 'less' after initTranslate
-    // they don't have baseTranslation translation data attached to them.
-    $('.crypto-buttons .js-i18n').each(function () {
-      var el = $(this)
-      el.data('baseTranslation', el.html().trim())
-    })
-  }
-}
-
-function setCryptoBuy (coin) {
-  const cashIn = $('.cash-in')
-  const translatedCoin = translate(coin.display === displayLN ? displayBTC : coin.display)
-  const buyStr = translate('Buy<br/>%s', [translatedCoin])
-
-  cashIn.html(buyStr)
-}
-
-function setCryptoSell (coin) {
-  const cashOut = $('.cash-out')
-  const translatedCoin = translate(coin.display === displayLN ? displayBTC : coin.display)
-  const sellStr = translate('Sell<br/>%s', [translatedCoin])
-
-  cashOut.html(sellStr)
-}
-
-function setCoins (supportedCoins) {
-  coins = supportedCoins
-}
-
-function getCryptoCurrency (cryptoCode) {
-  const cryptoCurrency = coins.find(c => c.cryptoCode === cryptoCode)
-  if (!cryptoCurrency) throw new Error(`Unsupported crypto: ${cryptoCode}`)
-  return cryptoCurrency
-}
-
-function switchCoin (coin) {
-  const cashIn = $('.cash-in')
-  const cashOut = $('.cash-out')
-  const cryptoCode = coin.cryptoCode
-
-  if (currentCryptoCode === cryptoCode) return
-
-  $(`.coin-${currentCryptoCode.toLowerCase()}`).removeClass('choose-coin-button-active')
-  $(`.coin-${cryptoCode.toLowerCase()}`).addClass('choose-coin-button-active')
-  currentCryptoCode = cryptoCode
-  currentCoin = coin
-
-  cashIn.addClass('crypto-switch')
-  setTimeout(() => setCryptoBuy(coin), 100)
-  setTimeout(() => cashIn.removeClass('crypto-switch'), 1000)
-
-  setTimeout(() => {
-    cashOut.addClass('crypto-switch')
-    setTimeout(() => setCryptoSell(coin), 100)
-    setTimeout(() => cashOut.removeClass('crypto-switch'), 1000)
-  }, 80)
-
-  const selectedIndex = currentCoins.indexOf(currentCoins.find(it => it.cryptoCode === cryptoCode))
-  if (currentCoins.length > 4 && selectedIndex > 2) {
-    currentCoins.splice(2, 0, currentCoins.splice(selectedIndex, 1)[0])
-  }
-
-  setupCoinsButtons()
-}
-
-$(document).ready(function () {
-  const attachFastClick = Origami.fastclick
-  attachFastClick(document.body)
-
-  window.addEventListener('resize', () => {
-    calculateAspectRatio()
-    setChooseCoinColors()
-  })
-
-  // Matt's anti-drag hack
-  window.onclick =
-    window.oncontextmenu =
-      window.onmousedown =
-        window.onmousemove =
-          window.onmouseup =
-            function () { return false }
-
-  BigNumber.config({ ROUNDING_MODE: BigNumber.ROUND_HALF_EVEN })
-
-  wifiKeyboard = new Keyboard({
-    id: 'wifi-keyboard',
-    inputBox: '#input-passphrase'
-  }).init()
-
-  promoKeyboard = new Keyboard({
-    id: 'promo-keyboard',
-    inputBox: '.promo-code-input'
-  }).init(function () {
-    if (currentState !== 'insert_promo_code') return
-    buttonPressed('cancelPromoCode')
-  })
-
-  usSsnKeypad = new Keypad('us-ssn-keypad', { type: 'usSsn' }, function (result) {
-    if (currentState !== 'register_us_ssn') return
-    buttonPressed('usSsn', result)
-  })
-
-  phoneKeypad = new Keypad('phone-keypad', { type: 'phoneNumber', country: 'US' }, function (result) {
-    if (currentState !== 'register_phone') return
-    buttonPressed('phoneNumber', result)
-  })
-
-  securityKeypad = new Keypad('security-keypad', { type: 'code' }, function (result) {
-    if (currentState !== 'security_code') return
-    buttonPressed('securityCode', result)
-  })
-
-  customRequirementNumericalKeypad = new Keypad('custom-requirement-numeric-keypad', {
-    type: 'custom'
-  }, function (result) {
-    if (currentState !== 'custom_permission_screen2_numerical') return
-    buttonPressed('customInfoRequestSubmit', result)
-  })
-
-  emailKeyboard = new Keyboard({
-    id: 'email-keyboard',
-    inputBox: '#email-input',
-    submitButtonWrapper: '#submit-email-wrapper',
-    setComplianceTimeout: setComplianceTimeout
-  }).init(function (result) {
-    if (currentState !== 'register_email') return
-    buttonPressed('email', result)
-  })
-
-  customRequirementTextKeyboard = new Keyboard({
-    id: 'custom-requirement-text-keyboard',
-    inputBox: '.text-input-field-1',
-    submitButtonWrapper: '.submit-text-requirement-button-wrapper',
-    setComplianceTimeout: setComplianceTimeout
-  }).init(function () {
-    if (currentState !== 'custom_permission_screen2_text') return
-    buttonPressed('customInfoRequestSubmit')
-  })
-
-  customRequirementChoiceList = new ChoiceList({
-    id: 'custom-requirement-choicelist-wrapper',
-    setComplianceTimeout: setComplianceTimeout
-  }).init(function (result) {
-    if (currentState !== 'custom_permission_screen2_choiceList') return
-    buttonPressed('customInfoRequestSubmit', result)
-  })
-
-  if (DEBUG_MODE !== 'demo') {
-    connect()
-    setInterval(verifyConnection, 1000)
-  }
-
-  initTranslatePage()
-
-  var wifiNetworkButtons = document.getElementById('networks')
-  touchEvent(wifiNetworkButtons, function (e) {
-    var target = $(e.target)
-    if (target.attr('id') === 'more-networks') {
-      moreNetworks()
-    } else {
-      var networkButton = target.closest('.wifi-network-button')
-      $('#networks > .active').removeClass('active')
-      networkButton.addClass('active')
-      window.setTimeout(function () { networkButton.removeClass('active') }, 1000)
-      var ssidEl = networkButton.find('.ssid')
-      var ssid = ssidEl.data('ssid')
-      if (ssid) {
-        var displaySsid = ssidEl.text()
-        var rawSsid = ssidEl.data('raw-ssid')
-        buttonPressed('wifiSelect',
-          { ssid: ssid, rawSsid: rawSsid, displaySsid: displaySsid })
-      }
-    }
-  })
-
-  var wifiConnectButton = document.getElementById('wifiConnect')
-  touchEvent(wifiConnectButton, function () {
-    var wifiConnectButtonJ = $(wifiConnectButton)
-    wifiConnectButtonJ.addClass('active')
-    window.setTimeout(function () { wifiConnectButtonJ.removeClass('active') }, 500)
-    var pass = $('#wifi-keyboard input.passphrase').data('content')
-    var ssid = $('#js-i18n-wifi-for-ssid').data('ssid')
-    var rawSsid = $('#js-i18n-wifi-for-ssid').data('raw-ssid')
-    buttonPressed('wifiConnect', { pass: pass, ssid: ssid, rawSsid: rawSsid })
-  })
-
-  var sendCoinsButton = document.getElementById('send-coins')
-  var sendCoinsButton2 = document.getElementById('send-only-send-coins')
-  touchEvent(sendCoinsButton, function () {
-    setState('sending_coins')
-    buttonPressed('sendCoins')
-  })
-
-  touchEvent(sendCoinsButton2, function () {
-    setState('sending_coins')
-    buttonPressed('sendCoins')
-  })
-
-  setupButton('recycler-continue-start', 'recyclerContinue')
-  setupButton('recycler-continue', 'recyclerContinue')
-  setupButton('recycler-finish', 'sendCoins')
-  setupButton('cash-slot-bills-removed', 'cashSlotBillsRemoved')
-  setupButton('leftover-bills-removed', 'leftoverBillsRemoved')
-
-  const blockedCustomerOk = document.getElementById('blocked-customer-ok')
-  touchEvent(blockedCustomerOk, function () {
-    buttonPressed('blockedCustomerOk')
-  })
-  var insertBillCancelButton = document.getElementById('insertBillCancel')
-  touchImmediateEvent(insertBillCancelButton, function () {
-    setBuyerAddress(null)
-    buttonPressed('cancelInsertBill')
-  })
-
-  var insertBillCancelRecyclerButton = document.getElementById('insertBillCancelRecycler')
-  touchImmediateEvent(insertBillCancelRecyclerButton, function () {
-    setBuyerAddress(null)
-    buttonPressed('cancelInsertBill')
-  })
-
-  setupImmediateButton('wifiPassCancel', 'cancelWifiPass')
-  setupImmediateButton('scanCancel', 'cancelScan')
-  setupImmediateButton('completed_viewport', 'completed')
-  setupImmediateButton('withdraw_failure_viewport', 'completed')
-  setupImmediateButton('out_of_coins_viewport', 'completed')
-  setupImmediateButton('fiat_receipt_viewport', 'completed')
-  setupImmediateButton('fiat_complete_viewport', 'completed')
-  setupImmediateButton('chooseFiatCancel', 'chooseFiatCancel')
-  setupImmediateButton('depositCancel', 'depositCancel')
-  setupImmediateButton('printer-scan-cancel', 'cancelScan')
-
-  setupButton('printer-back-to-home', 'idle')
-  setupButton('printer-print-again', 'printAgain')
-  setupButton('printer-print-again2', 'printAgain')
-  setupButton('printer-scan-again', 'printerScanAgain')
-
-  setupButton('insert-first-bill-promo-button', 'insertPromoCode')
-  setupButton('insert-first-recycler-bills-promo-button', 'insertPromoCode')
-  setupButton('choose-fiat-promo-button', 'insertPromoCode')
-
-  var promoCodeCancelButton = document.getElementById('promo-code-cancel')
-  touchImmediateEvent(promoCodeCancelButton, function () {
-    promoKeyboard.deactivate.bind(promoKeyboard)
-    buttonPressed('cancelPromoCode')
-  })
-
-  var submitCodeButton = document.getElementById('submit-promo-code')
-  touchEvent(submitCodeButton, function () {
-    promoKeyboard.deactivate.bind(promoKeyboard)
-    var code = $('.promo-code-input').data('content')
-    buttonPressed('submitPromoCode', { input: code })
-  })
-
-  const submitEmailButton = document.getElementById('submit-email')
-  const submitTextRequirementButton = document.getElementById('submit-text-requirement')
-  const nextFieldTextRequirementButton = document.getElementById('next-text-requirement')
-  const previousFieldTextRequirementButton = document.getElementById('previous-text-requirement')
-  touchEvent(submitEmailButton, function () {
-    emailKeyboard.deactivate.bind(emailKeyboard)
-    var text = $('#email-input').data('content')
-    buttonPressed('email', text)
-    $('#email-input').data('content', '').val('')
-    emailKeyboard.setInputBox('#email-input')
-  })
-  touchEvent(submitTextRequirementButton, function () {
-    customRequirementTextKeyboard.deactivate.bind(customRequirementTextKeyboard)
-    var text = `${$('.text-input-field-1').data('content')} ${$('.text-input-field-2').data('content') || ''}`
-    buttonPressed('customInfoRequestSubmit', text)
-    $('.text-input-field-1').removeClass('faded').data('content', '').val('')
-    $('.text-input-field-2').addClass('faded').data('content', '').val('')
-    customRequirementTextKeyboard.setInputBox('.text-input-field-1')
-  })
-  touchEvent(nextFieldTextRequirementButton, function() {
-    $('.text-input-field-1').addClass('faded')
-    $('.text-input-field-2').removeClass('faded')
-    $('#next-text-requirement').hide()
-    $('#previous-text-requirement').show()
-    $('#submit-text-requirement').show()
-    // changing input box changes buttons where validation works on
-    customRequirementTextKeyboard.setInputBox('.text-input-field-2', ['#submit-text-requirement'])
-  })
-  touchEvent(previousFieldTextRequirementButton, function() {
-    $('.text-input-field-1').removeClass('faded')
-    $('.text-input-field-2').addClass('faded')
-    $('#next-text-requirement').show()
-    $('#previous-text-requirement').hide()
-    $('#submit-text-requirement').hide()
-    customRequirementTextKeyboard.setInputBox('.text-input-field-1', ['#next-text-requirement'])
-  })
-
-  setupButton('submit-promo-code', 'submitPromoCode', {
-    input: $('.promo-code-input').data('content')
-  })
-  setupButton('promo-code-try-again', 'insertPromoCode')
-  setupButton('promo-code-continue', 'cancelPromoCode')
-
-  setupButton('initialize', 'initialize')
-  setupButton('pairing-scan', 'pairingScan')
-  setupImmediateButton('pairing-scan-cancel', 'pairingScanCancel')
-  setupButton('pairing-error-ok', 'pairingErrorOk')
-  setupButton('cash-out-button', 'cashOut')
-
-  setupImmediateButton('scan-id-cancel', 'idDataActionCancel')
-  setupImmediateButton('scan-photo-cancel', 'idPhotoActionCancel')
-  setupImmediateButton('scan-photo-manual-cancel', 'idPhotoActionCancel')
-  setupImmediateButton('us-ssn-cancel', 'cancelUsSsn',
-    usSsnKeypad.deactivate.bind(usSsnKeypad))
-  setupImmediateButton('phone-number-cancel', 'cancelPhoneNumber',
-    phoneKeypad.deactivate.bind(phoneKeypad))
-  setupImmediateButton('security-code-cancel', 'cancelSecurityCode',
-    securityKeypad.deactivate.bind(securityKeypad))
-  setupButton('id-verification-failed-ok', 'idVerificationFailedOk')
-  setupButton('id-scan-failed-try-again', 'idCodeFailedRetry')
-  setupButton('id-scan-failed-cancel', 'idVerificationFailedOk')
-  setupButton('id-code-failed-retry', 'idCodeFailedRetry')
-  setupButton('id-code-failed-cancel', 'bye')
-  setupButton('id-verification-error-ok', 'idVerificationErrorOk')
-  setupButton('photo-scan-failed-retry', 'retryPhotoScan')
-  setupButton('photo-scan-failed-cancel', 'photoScanVerificationCancel')
-  setupButton('photo-verification-failed-ok', 'cancelIdScan')
-  setupButton('invalid-address-try-again', 'invalidAddressTryAgain')
-  setupButton('address-reuse-start-over', 'idle')
-  setupButton('suspicious-address-start-over', 'idle')
-
-  setupButton('sanctions-failure-ok', 'idle')
-  setupButton('limit-reached-ok', 'idle')
-  setupButton('hard-limit-reached-ok', 'idle')
-  setupButton('deposit-timeout-sent-yes', 'depositTimeout')
-  setupButton('deposit-timeout-sent-no', 'depositTimeoutNotSent')
-  setupButton('out-of-cash-ok', 'idle')
-  setupButton('cash-in-disabled-ok', 'idle')
-  setupButton('cash-in-only-ok', 'idle')
-
-  setupButton('bad-phone-number-ok', 'badPhoneNumberOk')
-  setupButton('bad-security-code-ok', 'badSecurityCodeOk')
-  setupButton('max-phone-retries-ok', 'maxPhoneRetriesOk')
-  //setupButton('max-email-retries-ok', 'maxEmailRetriesOk')
-  setupButton('redeem-later-ok', 'idle')
-  setupButton('pre-receipt-ok', 'fiatReceipt')
-  setupButton('fiat-error-ok', 'idle')
-  setupButton('network-down-ok', 'idle')
-  setupButton('fiat-transaction-error-ok', 'fiatReceipt')
-
-  setupButton('unknown-phone-number-ok', 'idle')
-  setupButton('unknown-email-ok', 'idle')
-  setupButton('unconfirmed-deposit-ok', 'idle')
-  setupButton('tx-not-seen-ok', 'idle')
-  setupButton('wrong-dispenser-currency-ok', 'idle')
-
-  setupButton('print-receipt-cash-in-button', 'printReceipt')
-  setupButton('print-receipt-cash-out-button', 'printReceipt')
-  setupButton('print-receipt-cash-in-fail-button', 'printReceipt')
-
-  setupButton('send-sms-receipt-cash-in-button', 'sendSmsReceipt')
-  setupButton('send-sms-receipt-cash-out-button', 'sendSmsReceipt')
-  setupButton('send-sms-receipt-cash-in-fail-button', 'sendSmsReceipt')
-
-  setupButton('terms-ok', 'termsAccepted')
-  setupButton('terms-ko', 'idle')
-
-  setupButton('maintenance_restart', 'maintenanceRestart')
-
-  calculateAspectRatio()
-
-  const cryptoButtons = document.getElementById('crypto-buttons')
-  touchEvent(cryptoButtons, event => {
-    let el = $(event.target)
-    if (el.is('path') || el.is('svg') || el.is('span')) {
-      el = el.closest('div')
-    }
-
-    if (el.data('more')) {
-      openCoinDropdown()
-      return
-    }
-
-    if (el.data('less')) {
-      closeCoinDropdown()
-      return
-    }
-
-    const cryptoCode = el.data('cryptoCode')
-    if (!cryptoCode) return
-
-    const wantedCoin = currentCoins.find(it => it.cryptoCode === cryptoCode)
-    if (!wantedCoin) return
-
-    const coin = { cryptoCode, display: wantedCoin.display === displayLN ? displayBTC : wantedCoin.display }
-    switchCoin(coin)
-  })
-
-  var areYouSureCancel = document.getElementById('are-you-sure-cancel-transaction')
-  touchEvent(areYouSureCancel, () => buttonPressed('cancelTransaction', previousState))
-
-  var areYouSureContinue = document.getElementById('are-you-sure-continue-transaction')
-  touchEvent(areYouSureContinue, () => buttonPressed('continueTransaction', previousState))
-
-  var coinRedeem = document.getElementById('coin-redeem-button')
-  touchEvent(coinRedeem, () => {
-    setDirection('cashOut')
-    buttonPressed('redeem')
-  })
-
-  setupButton('facephoto-scan-failed-retry', 'retryFacephoto')
-  setupButton('id-start-verification', 'permissionIdCompliance')
-  setupButton('sms-start-verification', 'permissionSmsCompliance')
-  setupButton('email-start-verification', 'permissionEmailCompliance');
-  setupButton('ready-to-scan-id-card-photo', 'scanIdCardPhoto')
-  setupButton('facephoto-permission-yes', 'permissionPhotoCompliance')
-  setupButton('us-ssn-permission-yes', 'permissionUsSsnCompliance')
-  setupButton('external-permission-yes', 'permissionExternalCompliance')
-
-  setupButton('send-coins-id', 'finishBeforeSms')
-  setupButton('send-coins-id-2', 'finishBeforeSms')
-  setupButton('send-coins-sms', 'finishBeforeSms')
-  setupButton('send-coins-sms-2', 'finishBeforeSms')
-  setupButton('send-coins-email', 'finishBeforeSms');
-  setupButton('send-coins-email-2', 'finishBeforeSms');
-
-  setupButton('facephoto-permission-no', 'finishBeforeSms')
-  setupButton('us-ssn-permission-send-coins', 'finishBeforeSms')
-  setupButton('us-ssn-permission-cancel', 'finishBeforeSms')
-  setupButton('us-ssn-cancel', 'finishBeforeSms')
-  setupButton('external-permission-send-coins', 'finishBeforeSms')
-  setupButton('facephoto-scan-failed-cancel', 'finishBeforeSms')
-  setupButton('facephoto-scan-failed-cancel2', 'finishBeforeSms')
-
-  setupButton('custom-permission-yes', 'permissionCustomInfoRequest')
-  setupButton('custom-permission-no', 'finishBeforeSms')
-  setupImmediateButton('custom-permission-cancel-numerical', 'cancelCustomInfoRequest', () => {
-    customRequirementNumericalKeypad.deactivate.bind(customRequirementNumericalKeypad)
-  })
-  setupImmediateButton('email-cancel', 'cancelEmail', () => {
-    emailKeyboard.deactivate.bind(emailKeyboard)
-    $('#email-input').data('content', '').val('')
-    emailKeyboard.setInputBox('#email-input')
-  })
-  setupImmediateButton('custom-permission-cancel-text', 'cancelCustomInfoRequest', () => {
-    customRequirementTextKeyboard.deactivate.bind(customRequirementTextKeyboard)
-    $('.text-input-field-1').removeClass('faded').data('content', '').val('')
-    $('.text-input-field-2').addClass('faded').data('content', '').val('')
-    customRequirementTextKeyboard.setInputBox('.text-input-field-1')
-  })
-  setupImmediateButton('custom-permission-cancel-choiceList', 'cancelCustomInfoRequest', () => {
-  })
-
-  setupButton('custom-permission-yes', 'permissionCustomInfoRequest')
-  setupButton('custom-permission-no', 'finishBeforeSms')
-  setupImmediateButton('custom-permission-cancel-numerical', 'cancelCustomInfoRequest', () => {
-    customRequirementNumericalKeypad.deactivate.bind(customRequirementNumericalKeypad)
-  })
-  setupImmediateButton('custom-permission-cancel-text', 'cancelCustomInfoRequest', () => {
-    customRequirementTextKeyboard.deactivate.bind(customRequirementTextKeyboard)
-    $('.text-input-field-1').removeClass('faded').data('content', '').val('')
-    $('.text-input-field-2').addClass('faded').data('content', '').val('')
-    customRequirementTextKeyboard.setInputBox('.text-input-field-1')
-  })
-
-  setupButton('external-validation-ok', 'finishBeforeSms')
-
-  touchEvent(document.getElementById('change-language-section'), () => {
-    if (_primaryLocales.length === 2) {
-      setLocale(otherLocale())
-      setCryptoBuy(currentCoin)
-      setCryptoSell(currentCoin)
-      return
-    }
-    openLanguageDropdown()
-  })
-
-  const cashInBox = document.getElementById('cash-in-box')
-  touchEvent(cashInBox, () => {
-    buttonPressed('start', { cryptoCode: currentCryptoCode, direction: 'cashIn' })
-  })
-
-  const cashOutBox = document.getElementById('cash-out-box')
-  touchEvent(cashOutBox, () => {
-    buttonPressed('start', { cryptoCode: currentCryptoCode, direction: 'cashOut' })
-  })
-
-  var languageOverlay = document.getElementById('language-overlay')
-  touchEvent(languageOverlay, function (e) {
-    closeLanguageDropdown()
-  })
-
-  var cryptoOverlay = document.getElementById('crypto-overlay')
-  touchEvent(cryptoOverlay, function (e) {
-    closeCoinDropdown()
-  })
-
-  var languageButtons = document.getElementById('languages')
-  touchEvent(languageButtons, function (e) {
-    var languageButtonJ = $(e.target).closest('button')
-    if (languageButtonJ.length === 0) return
-    var newLocale = languageButtonJ.attr('data-locale')
-
-    if (!newLocale) {
-      closeLanguageDropdown()
-      return
-    }
-
-    setLocale(newLocale)
-    setCryptoBuy(currentCoin)
-    setCryptoSell(currentCoin)
-    closeLanguageDropdown()
-  })
-
-  buildCassetteButtonEvents()
-  initDebug()
-})
-
-function targetButton (element) {
-  var classList = element.classList || []
-  var special = classList.contains('button') ||
-    classList.contains('circle-button') ||
-    classList.contains('wifi-network-button') ||
-    classList.contains('square-button')
-  if (special) { return element }
-  return targetButton(element.parentNode)
-}
-
-function touchEvent (element, callback) {
-  function handler (e) {
+function touchEvent(element, callback) {
+  function handler(e) {
     // Sprawdź, czy przyciski są zablokowane
     if (areButtonsLocked()) {
-      console.log('Buttons are locked, ignoring click');
+      console.log('UI locked, ignoring click');
       e.stopPropagation();
       e.preventDefault();
       return;
@@ -1179,18 +138,18 @@ function touchEvent (element, callback) {
     var target = targetButton(e.target);
     
     // Blokuj wszystkie przyciski i zaznacz kliknięty
-    lockButtons(target, 'all-buttons');
+    lockButtons(target);
 
     // Dodaj klasę active tylko dla wizualnego efektu (krótkotrwałego)
     target.classList.add('active');
 
     // Wait for transition to finish
-    setTimeout(function () {
+    setTimeout(function() {
       target.classList.remove('active');
     }, 300);
 
     // Wykonaj callback z pewnym opóźnieniem, aby dać czas na wizualne efekty
-    setTimeout(function () {
+    setTimeout(function() {
       callback(e);
     }, 200);
 
@@ -1204,18 +163,18 @@ function touchEvent (element, callback) {
   element.addEventListener('mousedown', handler);
 }
 
-function touchImmediateEvent (element, callback) {
-  function handler (e) {
+function touchImmediateEvent(element, callback) {
+  function handler(e) {
     // Sprawdź, czy przyciski są zablokowane
     if (areButtonsLocked()) {
-      console.log('Buttons are locked, ignoring immediate click');
+      console.log('UI locked, ignoring immediate click');
       e.stopPropagation();
       e.preventDefault();
       return;
     }
     
     // Blokuj wszystkie przyciski
-    lockButtons(targetButton(e.target), 'all-buttons');
+    lockButtons(targetButton(e.target));
     
     // Wykonaj callback natychmiast
     callback(e);
@@ -1228,70 +187,78 @@ function touchImmediateEvent (element, callback) {
   element.addEventListener('mousedown', handler);
 }
 
-function setupImmediateButton (buttonClass, buttonAction, callback) {
-  var button = document.getElementById(buttonClass)
-  touchImmediateEvent(button, function () {
-    if (callback) callback()
-    buttonPressed(buttonAction)
-  })
+function buttonPressed(button, data) {
+  // Nie wykonuj akcji jeśli przyciski są nieaktywne
+  if (!buttonActive) return;
+  
+  wifiKeyboard.deactivate();
+  promoKeyboard.deactivate();
+  emailKeyboard.deactivate();
+  customRequirementTextKeyboard.deactivate();
+  buttonActive = false;
+  
+  var res = { button: button };
+  if (data || data === null) res.data = data;
+  if (websocket) websocket.send(JSON.stringify(res));
+  
+  setTimeout(function() {
+    buttonActive = true;
+    wifiKeyboard.activate();
+    promoKeyboard.activate();
+    emailKeyboard.activate();
+    customRequirementTextKeyboard.activate();
+  }, 300);
 }
 
-function setupButton (buttonClass, buttonAction, actionData) {
-  var button = document.getElementById(buttonClass)
-  touchEvent(button, function () {
-    buttonPressed(buttonAction, actionData)
-  })
-}
-
-function setScreen (newScreen, oldScreen) {
-  if (newScreen === oldScreen) return
+function setScreen(newScreen, oldScreen) {
+  if (newScreen === oldScreen) return;
 
   // Odblokuj przyciski przy zmianie ekranu
-  unlockButtons()
+  unlockButtons();
 
   if (newScreen === 'insert_bills') {
-    $('.js-processing-bill').html(translate('Lamassu Cryptomat'))
-    $('.bill img').css({'-webkit-transform': 'none', top: 0, left: 0})
+    $('.js-processing-bill').html(translate('Lamassu Cryptomat'));
+    $('.bill img').css({'-webkit-transform': 'none', top: 0, left: 0});
   }
 
-  var newView = $('.' + newScreen + '_state')
-  if (newView.length !== 1) console.log('FATAL: ' + newView.length + ' screens found of class ' + newScreen + '_state')
+  var newView = $('.' + newScreen + '_state');
+  if (newView.length !== 1) console.log('FATAL: ' + newView.length + ' screens found of class ' + newScreen + '_state');
 
-  $('.viewport').removeClass('viewport-active')
-  newView.addClass('viewport-active')
+  $('.viewport').removeClass('viewport-active');
+  newView.addClass('viewport-active');
 }
 
-function setState (state, delay) {
-  if (state === currentState) return
+function setState(state, delay) {
+  if (state === currentState) return;
 
   if (currentState === 'terms_screen') {
-    clearTermsConditionsTimeout()
-    clearTermsConditionsAcceptanceDelay()
+    clearTermsConditionsTimeout();
+    clearTermsConditionsAcceptanceDelay();
   }
 
-  setComplianceTimeout(0)
+  setComplianceTimeout(0);
 
-  previousState = currentState
-  currentState = state
+  previousState = currentState;
+  currentState = state;
 
   // Odblokuj przyciski natychmiast przy zmianie stanu
   unlockButtons();
 
-  wifiKeyboard.reset()
-  promoKeyboard.reset()
-  emailKeyboard.reset()
-  customRequirementTextKeyboard.reset()
+  wifiKeyboard.reset();
+  promoKeyboard.reset();
+  emailKeyboard.reset();
+  customRequirementTextKeyboard.reset();
 
   if (state === 'idle') {
-    $('.qr-code').empty()
-    $('.qr-code-deposit').empty()
+    $('.qr-code').empty();
+    $('.qr-code-deposit').empty();
   }
 
   if (delay) {
-    window.setTimeout(function () {
-      setScreen(currentState, previousState)
-    }, delay)
-  } else setScreen(currentState, previousState)
+    window.setTimeout(function() {
+      setScreen(currentState, previousState);
+    }, delay);
+  } else setScreen(currentState, previousState);
 }
 
 function revertScreen () { setScreen(currentState) }
