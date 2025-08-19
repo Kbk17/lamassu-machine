@@ -7,6 +7,7 @@ const DEBUG_MODE = params.get('debug')
 const CASH_OUT_QR_COLOR = '#403c51'
 const CASH_IN_QR_COLOR = '#0e4160'
 const NUMBER_OF_BUTTONS = 3
+const LIVEVIEW_PORT = 3456 // lib/capture/liveview/http.js
 
 var scrollSize = 0
 var textHeightQuantity = 0
@@ -314,7 +315,7 @@ function processData (data) {
       setState('rates')
       break
     case 'enableLiveview':
-      enableLiveview(data.liveviewPort)
+      enableLiveview()
       break
     case 'disableLiveview':
       disableLiveview()
@@ -2247,7 +2248,7 @@ function setRates (allRates, fiat) {
   ratesTable.empty().append(tableHeader).append(coinEntries)
 }
 
-function enableLiveview (liveviewPort) {
+function enableLiveview () {
   const liveviewDiv = $('#liveview-div')
   const existingImg = document.getElementById('liveview-img')
   if (existingImg) {
@@ -2257,7 +2258,7 @@ function enableLiveview (liveviewPort) {
   const liveviewImg = document.createElement('img')
   liveviewImg.id = 'liveview-img'
   liveviewImg.type = 'multipart/x-mixed-replace'
-  liveviewImg.src = `http://localhost:${liveviewPort}/?${Date.now()}`
+  liveviewImg.src = `http://localhost:${LIVEVIEW_PORT}/?${Date.now()}`
 
   let loaded = false
   liveviewImg.onload = () => {
