@@ -92,6 +92,11 @@ const displayBTC = 'Bitcoin<br>(LN)'
 const LN = 'LN'
 const BTC = 'BTC'
 
+function setStateFromAction (action) {
+  disableLiveview()
+  setState(window.snakecase(action))
+}
+
 function processData (data) {
   if (data.screenOpts) setScreenOptions(data.screenOpts)
   if (data.localeInfo) setLocaleInfo(data.localeInfo)
@@ -314,14 +319,12 @@ function processData (data) {
     case 'rates':
       setState('rates')
       break
-    case 'enableLiveview':
+    case 'scanAddress':
+      setStateFromAction('scanAddress')
       enableLiveview()
       break
-    case 'disableLiveview':
-      disableLiveview()
-      break
     default:
-      if (data.action) setState(window.snakecase(data.action))
+      if (data.action) setStateFromAction(data.action)
   }
 }
 
@@ -2285,7 +2288,6 @@ function enableLiveview () {
   scanLine.className = 'scan-line'
 
   liveviewDiv.append(scanLine)
-
 }
 
 function disableLiveview () {
