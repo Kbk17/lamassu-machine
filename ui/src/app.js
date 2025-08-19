@@ -50,6 +50,7 @@ let customRequirementTextKeyboard = null
 let customRequirementChoiceList = null
 var viewportButtonEventsActive = null
 var viewportEvents = {}
+let liveviewEnabled = false
 
 var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr',
   'hu', 'it', 'lt', 'nb', 'nl', 'pl', 'pt', 'ro', 'sl', 'sv', 'tr']
@@ -131,7 +132,7 @@ function processData (data) {
   if (data.cryptomatModel) setCryptomatModel(data.cryptomatModel)
   if (data.areThereAvailablePromoCodes !== undefined) setAvailablePromoCodes(data.areThereAvailablePromoCodes)
   if (data.allRates && data.ratesFiat) setRates(data.allRates, data.ratesFiat)
-
+  if (Object.hasOwn(data, 'liveviewEnabled')) liveviewEnabled = data.liveviewEnabled
   if (data.tx && data.tx.discount) setCurrentDiscount(data.tx.discount)
   if (data.receiptStatus) setReceiptPrint(data.receiptStatus, null)
   if (data.smsReceiptStatus) setReceiptPrint(null, data.smsReceiptStatus)
@@ -2252,6 +2253,8 @@ function setRates (allRates, fiat) {
 }
 
 function enableLiveview () {
+  if (!liveviewEnabled) return
+
   const liveviewDiv = $('#liveview-div')
   const existingImg = document.getElementById('liveview-img')
   if (existingImg) {
