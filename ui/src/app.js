@@ -2294,6 +2294,9 @@ function enableLiveview () {
 }
 
 function disableLiveview () {
+  // stop loading liveview; kills the HTTP connection
+  $('#liveview-img').attr('src', '')
+
   const liveviewDiv = $('#liveview-div')
   liveviewDiv.empty()
   liveviewDiv.addClass('hide')
