@@ -2265,6 +2265,7 @@ function enableLiveview () {
   liveviewImg.id = 'liveview-img'
   liveviewImg.type = 'multipart/x-mixed-replace'
   liveviewImg.src = `http://localhost:${LIVEVIEW_PORT}/?${Date.now()}`
+  liveviewImg.onerror = disableLiveview
 
   let loaded = false
   liveviewImg.onload = () => {
