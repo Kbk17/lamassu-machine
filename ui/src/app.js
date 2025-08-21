@@ -1842,9 +1842,9 @@ function qrize (text, target, color, size = 'normal') {
 }
 
 function setTx (tx) {
+  const { bills, isPaperWallet, discount, promoCodeApplied } = tx
   const txId = tx.id
-  const isPaperWallet = tx.isPaperWallet
-  const hasBills = tx.bills && tx.bills.length > 0
+  const hasBills = bills && bills.length > 0
 
   if (hasBills) {
     $('.js-inserted-notes').show()
@@ -1856,7 +1856,7 @@ function setTx (tx) {
 
   $('.js-paper-wallet').toggleClass('hide', !isPaperWallet)
 
-  setCurrentDiscount(tx.discount, tx.promoCodeApplied)
+  setCurrentDiscount(discount, promoCodeApplied)
 
   setTimeout(() => {
     qrize(txId, $('#cash-in-qr-code'), CASH_IN_QR_COLOR)
