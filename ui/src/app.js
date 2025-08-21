@@ -1880,7 +1880,7 @@ function setTx (tx) {
     qrize(text, $('#cash-in-no-funds-qr-code'), CASH_IN_QR_COLOR, 'small')
     qrize(text, $('#qr-code-fiat-receipt'), CASH_OUT_QR_COLOR)
     qrize(text, $('#qr-code-fiat-complete'), CASH_OUT_QR_COLOR)
-  }, 1000)
+  }, 10)
 }
 
 function formatAddressNoBreakLines (address) {
