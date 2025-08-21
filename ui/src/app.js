@@ -1815,7 +1815,7 @@ function setExchangeRate (_rates) {
   $('.js-crypto-display-units').text(displayCode)
 }
 
-function qrize (text, target, color, lightning, size = 'normal') {
+function qrize (text, target, color, size = 'normal') {
   const image = document.getElementById('bolt-img')
   // Hack for surf browser
   const _size = size === 'normal'
@@ -1834,10 +1834,6 @@ function qrize (text, target, color, lightning, size = 'normal') {
     mPosY: 50,
     mSize: 30,
     image
-  }
-
-  if (lightning) {
-    opts.mode = 'image'
   }
 
   const el = kjua(opts)
@@ -1865,7 +1861,7 @@ function setTx (tx) {
   setTimeout(() => {
     qrize(txId, $('#cash-in-qr-code'), CASH_IN_QR_COLOR)
     qrize(txId, $('#cash-in-fail-qr-code'), CASH_IN_QR_COLOR)
-    qrize(txId, $('#cash-in-no-funds-qr-code'), CASH_IN_QR_COLOR, null, 'small')
+    qrize(txId, $('#cash-in-no-funds-qr-code'), CASH_IN_QR_COLOR, 'small')
     qrize(txId, $('#qr-code-fiat-receipt'), CASH_OUT_QR_COLOR)
     qrize(txId, $('#qr-code-fiat-complete'), CASH_OUT_QR_COLOR)
   }, 1000)
