@@ -1841,9 +1841,25 @@ function qrize (text, target, color, size = 'normal') {
   target.empty().append(el)
 }
 
+const encodeTxDetails = tx => JSON.stringify(
+  Object.fromEntries([
+    ['sessionId' ,'id'],
+    'direction',
+    'txHash',
+    'toAddress',
+    'cryptoCode',
+    'cryptoAtoms',
+    'fiatCode',
+    ['fiatAmount', 'fiat'],
+  ].map(w => {
+    const [dst, src] = Array.isArray(w) ? w : [w, w]
+    return [dst, tx[src]]
+  }))
+)
+
 function setTx (tx) {
-  const { bills, isPaperWallet, discount, promoCodeApplied } = tx
-  const txId = tx.id
+  const { bills, isPaperWallet, discount, promoCodeApplied, txURL } = tx
+  const text = txURL || encodeTxDetails(tx)
   const hasBills = bills && bills.length > 0
 
   if (hasBills) {
@@ -1859,11 +1875,11 @@ function setTx (tx) {
   setCurrentDiscount(discount, promoCodeApplied)
 
   setTimeout(() => {
-    qrize(txId, $('#cash-in-qr-code'), CASH_IN_QR_COLOR)
-    qrize(txId, $('#cash-in-fail-qr-code'), CASH_IN_QR_COLOR)
-    qrize(txId, $('#cash-in-no-funds-qr-code'), CASH_IN_QR_COLOR, 'small')
-    qrize(txId, $('#qr-code-fiat-receipt'), CASH_OUT_QR_COLOR)
-    qrize(txId, $('#qr-code-fiat-complete'), CASH_OUT_QR_COLOR)
+    qrize(text, $('#cash-in-qr-code'), CASH_IN_QR_COLOR)
+    qrize(text, $('#cash-in-fail-qr-code'), CASH_IN_QR_COLOR)
+    qrize(text, $('#cash-in-no-funds-qr-code'), CASH_IN_QR_COLOR, 'small')
+    qrize(text, $('#qr-code-fiat-receipt'), CASH_OUT_QR_COLOR)
+    qrize(text, $('#qr-code-fiat-complete'), CASH_OUT_QR_COLOR)
   }, 1000)
 }
 
