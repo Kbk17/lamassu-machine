@@ -7,6 +7,7 @@ const DEBUG_MODE = params.get('debug')
 const CASH_OUT_QR_COLOR = '#403c51'
 const CASH_IN_QR_COLOR = '#0e4160'
 const NUMBER_OF_BUTTONS = 3
+const LIVEVIEW_PORT = 3456 // lib/capture/liveview/http.js
 
 var scrollSize = 0
 var textHeightQuantity = 0
@@ -49,6 +50,7 @@ let customRequirementTextKeyboard = null
 let customRequirementChoiceList = null
 var viewportButtonEventsActive = null
 var viewportEvents = {}
+let liveviewEnabled = false
 
 var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr',
   'hu', 'it', 'lt', 'nb', 'nl', 'pl', 'pt', 'ro', 'sl', 'sv', 'tr']
@@ -166,6 +168,11 @@ const displayBTC = 'Bitcoin<br>(LN)'
 const LN = 'LN'
 const BTC = 'BTC'
 
+function setStateFromAction (action) {
+  disableLiveview()
+  setState(window.snakecase(action))
+}
+
 function processData (data) {
   if (data.screenOpts) setScreenOptions(data.screenOpts)
   if (data.localeInfo) setLocaleInfo(data.localeInfo)
@@ -200,7 +207,7 @@ function processData (data) {
   if (data.cryptomatModel) setCryptomatModel(data.cryptomatModel)
   if (data.areThereAvailablePromoCodes !== undefined) setAvailablePromoCodes(data.areThereAvailablePromoCodes)
   if (data.allRates && data.ratesFiat) setRates(data.allRates, data.ratesFiat)
-
+  if (Object.hasOwn(data, 'liveviewEnabled')) liveviewEnabled = data.liveviewEnabled
   if (data.tx && data.tx.discount) setCurrentDiscount(data.tx.discount)
   if (data.receiptStatus) setReceiptPrint(data.receiptStatus, null)
   if (data.smsReceiptStatus) setReceiptPrint(null, data.smsReceiptStatus)
@@ -388,14 +395,12 @@ function processData (data) {
     case 'rates':
       setState('rates')
       break
-    case 'enableLiveview':
-      enableLiveview(data.liveviewPort)
-      break
-    case 'disableLiveview':
-      disableLiveview()
+    case 'scanAddress':
+      setStateFromAction('scanAddress')
+      enableLiveview()
       break
     default:
-      if (data.action) setState(window.snakecase(data.action))
+      if (data.action) setStateFromAction(data.action)
   }
 }
 
@@ -2350,7 +2355,9 @@ function setRates (allRates, fiat) {
   ratesTable.empty().append(tableHeader).append(coinEntries)
 }
 
-function enableLiveview (liveviewPort) {
+function enableLiveview () {
+  if (!liveviewEnabled) return
+
   const liveviewDiv = $('#liveview-div')
   const existingImg = document.getElementById('liveview-img')
   if (existingImg) {
@@ -2360,7 +2367,8 @@ function enableLiveview (liveviewPort) {
   const liveviewImg = document.createElement('img')
   liveviewImg.id = 'liveview-img'
   liveviewImg.type = 'multipart/x-mixed-replace'
-  liveviewImg.src = `http://localhost:${liveviewPort}/?${Date.now()}`
+  liveviewImg.src = `http://localhost:${LIVEVIEW_PORT}/?${Date.now()}`
+  liveviewImg.onerror = disableLiveview
 
   let loaded = false
   liveviewImg.onload = () => {
@@ -2387,10 +2395,12 @@ function enableLiveview (liveviewPort) {
   scanLine.className = 'scan-line'
 
   liveviewDiv.append(scanLine)
-
 }
 
 function disableLiveview () {
+  // stop loading liveview; kills the HTTP connection
+  $('#liveview-img').attr('src', '')
+
   const liveviewDiv = $('#liveview-div')
   liveviewDiv.empty()
   liveviewDiv.addClass('hide')
