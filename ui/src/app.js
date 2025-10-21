@@ -138,6 +138,12 @@ function verifyConnection () {
   }
 }
 
+function emitEvent (button, data) {
+  var res = { button: button }
+  if (data || data === null) res.data = data
+  if (websocket) websocket.send(JSON.stringify(res))
+}
+
 function buttonPressed (button, data) {
   if (!buttonActive) return
   promoKeyboard.deactivate()
@@ -432,6 +438,10 @@ function externalPermission () {
 }
 
 function customInfoRequestPermission (customInfoRequest) {
+  if (customInfoRequest.disablePermissionScreen) {
+    emitEvent('permissionCustomInfoRequest')
+    return
+  }
   $('#custom-screen1-title').text(customInfoRequest.screen1.title)
   $('#custom-screen1-text').text(customInfoRequest.screen1.text)
   setComplianceTimeout(null, 'finishBeforeSms')
@@ -1970,6 +1980,8 @@ function translatePage () {
     el.attr('placeholder', translate(base))
   })
 
+  applyCustomTranslations()
+
   // Adjust send coins button
   var length = $('#send-coins span').text().length
   if (length > 17) $('body').addClass('i18n-long-send-coins')
@@ -2282,8 +2294,30 @@ function suspiciousAddress (blacklistMessage) {
   }
 }
 
+let customTranslations = {}
+
 function setScreenOptions (opts) {
   (opts.rates && opts.rates.active) ? $('#rates-section').show() : $('#rates-section').hide()
+  
+  if (opts.customText) {
+    customTranslations = opts.customText.reduce((acc, item) => {
+      acc[item.id] = item.text
+      return acc
+    }, {})
+    applyCustomTranslations()
+  }
+}
+
+function applyCustomTranslations () {
+  $('.js-custom-text').each(function () {
+    const el = $(this)
+    const screenId = el.data('text-id')
+    console.log(screenId, customTranslations[screenId])
+    
+    if (screenId && customTranslations[screenId]) {
+      el.html(customTranslations[screenId])
+    }
+  })
 }
 
 function thousandSeparator (number, country, minimumFractionDigits) {
