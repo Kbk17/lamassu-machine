@@ -1815,7 +1815,7 @@ function setExchangeRate (_rates) {
   $('.js-crypto-display-units').text(displayCode)
 }
 
-function qrize (text, target, color, lightning, size = 'normal') {
+function qrize (text, target, color, size = 'normal') {
   const image = document.getElementById('bolt-img')
   // Hack for surf browser
   const _size = size === 'normal'
@@ -1836,19 +1836,31 @@ function qrize (text, target, color, lightning, size = 'normal') {
     image
   }
 
-  if (lightning) {
-    opts.mode = 'image'
-  }
-
   const el = kjua(opts)
 
   target.empty().append(el)
 }
 
+const encodeTxDetails = tx => JSON.stringify(
+  Object.fromEntries([
+    ['sessionId' ,'id'],
+    'direction',
+    'txHash',
+    'toAddress',
+    'cryptoCode',
+    'cryptoAtoms',
+    'fiatCode',
+    ['fiatAmount', 'fiat'],
+  ].map(w => {
+    const [dst, src] = Array.isArray(w) ? w : [w, w]
+    return [dst, tx[src]]
+  }))
+)
+
 function setTx (tx) {
-  const txId = tx.id
-  const isPaperWallet = tx.isPaperWallet
-  const hasBills = tx.bills && tx.bills.length > 0
+  const { bills, isPaperWallet, discount, promoCodeApplied, txURL } = tx
+  const text = txURL || encodeTxDetails(tx)
+  const hasBills = bills && bills.length > 0
 
   if (hasBills) {
     $('.js-inserted-notes').show()
@@ -1860,15 +1872,15 @@ function setTx (tx) {
 
   $('.js-paper-wallet').toggleClass('hide', !isPaperWallet)
 
-  setCurrentDiscount(tx.discount, tx.promoCodeApplied)
+  setCurrentDiscount(discount, promoCodeApplied)
 
   setTimeout(() => {
-    qrize(txId, $('#cash-in-qr-code'), CASH_IN_QR_COLOR)
-    qrize(txId, $('#cash-in-fail-qr-code'), CASH_IN_QR_COLOR)
-    qrize(txId, $('#cash-in-no-funds-qr-code'), CASH_IN_QR_COLOR, null, 'small')
-    qrize(txId, $('#qr-code-fiat-receipt'), CASH_OUT_QR_COLOR)
-    qrize(txId, $('#qr-code-fiat-complete'), CASH_OUT_QR_COLOR)
-  }, 1000)
+    qrize(text, $('#cash-in-qr-code'), CASH_IN_QR_COLOR)
+    qrize(text, $('#cash-in-fail-qr-code'), CASH_IN_QR_COLOR)
+    qrize(text, $('#cash-in-no-funds-qr-code'), CASH_IN_QR_COLOR, 'small')
+    qrize(text, $('#qr-code-fiat-receipt'), CASH_OUT_QR_COLOR)
+    qrize(text, $('#qr-code-fiat-complete'), CASH_OUT_QR_COLOR)
+  }, 10)
 }
 
 function formatAddressNoBreakLines (address) {
