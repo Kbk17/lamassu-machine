@@ -4132,6 +4132,19 @@ button[disabled] {
   .register_us_ssn_state #security-keypad,
   .register_us_ssn_state #us-ssn-keypad {
     margin-left: 0;
+    margin-top: 0;
+  }
+  .register_phone_state #phone-keypad .entry,
+  .register_phone_state #security-keypad .entry,
+  .register_phone_state #us-ssn-keypad .entry,
+  .security_code_state #phone-keypad .entry,
+  .security_code_state #security-keypad .entry,
+  .security_code_state #us-ssn-keypad .entry,
+  .register_us_ssn_state #phone-keypad .entry,
+  .register_us_ssn_state #security-keypad .entry,
+  .register_us_ssn_state #us-ssn-keypad .entry {
+    padding: 0;
+    min-height: 4vh;
   }
   .register_phone_state #phone-keypad .keys,
   .register_phone_state #security-keypad .keys,
@@ -4154,7 +4167,7 @@ button[disabled] {
   .register_us_ssn_state #phone-keypad .progress-button-wrapper,
   .register_us_ssn_state #security-keypad .progress-button-wrapper,
   .register_us_ssn_state #us-ssn-keypad .progress-button-wrapper {
-    margin-top: 10vh;
+    margin-top: 0;
   }
   .register_phone_state #phone-keypad .progress-button-wrapper button,
   .register_phone_state #security-keypad .progress-button-wrapper button,
@@ -4305,6 +4318,9 @@ button[disabled] {
     -webkit-box-direction: normal;
     -webkit-flex-direction: column;
             flex-direction: column;
+  }
+  .custom_permission_screen2_choiceList_state main #custom-requirement-choicelist-wrapper .custom-requirement-question-wrapper {
+    width: auto;
   }
   .custom_permission_screen2_choiceList_state main #custom-requirement-choicelist-wrapper .choice-list-grid-wrapper {
     width: inherit;

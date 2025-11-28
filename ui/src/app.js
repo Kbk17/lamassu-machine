@@ -413,14 +413,14 @@ function translate (data, fetchArgs) {
       ? locale.translate(data).fetch(...fetchArgs)
       : locale.translate(data).fetch()
   } catch (error) {
-    if (!defaultLocale) console.error('Error while translating: ', error)
+    if (!defaultLocale) console.log('Error while translating: ', error)
     else {
       try {
         return fetchArgs
           ? defaultLocale.translate(data).fetch(...fetchArgs)
           : defaultLocale.translate(data).fetch()
       } catch (e) {
-        console.error('Error while translating: ', e)
+        console.log('Error while translating: ', e)
         return data
       }
     }

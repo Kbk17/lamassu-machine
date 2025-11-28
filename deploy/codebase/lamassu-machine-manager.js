@@ -197,6 +197,32 @@ function restartWatchdogService (isOffline, cb) {
   })
 }
 
+const disableUSBAutosuspend = cb => {
+  LOG("Disabling USB autosuspend")
+  const srcRule = `${applicationParentFolder}/lamassu-machine/hardware/system/${hardwareCode}/${machineCode}/udev/99-usb-no-autosuspend.rules`
+  const dstRule = "/etc/udev/rules.d/99-usb-no-autosuspend.rules"
+  try {
+    if (!fs.existsSync(srcRule) || fs.existsSync(dstRule))
+      return cb()
+    fs.copyFileSync(srcRule, dstRule, fs.constants.COPYFILE_EXCL)
+    cb()
+  } catch (err) {
+    cb(err)
+  }
+}
+
+const installUVCQuirk = cb => {
+  LOG("Installing UVC quirks")
+  const uvcvideo = "/etc/modprobe.d/uvcvideo.conf"
+  try {
+    if (fs.existsSync(uvcvideo)) return cb()
+    fs.writeFileSync(uvcvideo, "options uvcvideo quirks=0x80\n")
+    cb()
+  } catch (err) {
+    cb(err)
+  }
+}
+
 function installDeviceConfig (cb) {
   LOG("Installing `device_config.json`")
   try {
@@ -268,6 +294,8 @@ const upgrade = (isOffline = false) => {
     async.apply(command, `rm -rf ${applicationParentFolder}/lamassu-machine/node_modules/`),
     async.apply(command, `cp -PR ${basePath}/package/subpackage/lamassu-machine ${applicationParentFolder}`),
     async.apply(command, `mv ${applicationParentFolder}/lamassu-machine/verify/verify.amd64 ${applicationParentFolder}/lamassu-machine/verify/verify`),
+    async.apply(disableUSBAutosuspend),
+    async.apply(installUVCQuirk),
     async.apply(installDeviceConfig),
     async.apply(updateSupervisor, isOffline),
     async.apply(updateSystemd, isOffline),

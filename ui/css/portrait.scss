@@ -335,6 +335,12 @@ main {
   #security-keypad,
   #us-ssn-keypad {
     margin-left: 0;
+    margin-top: 0;
+
+    .entry {
+      padding: 0;
+      min-height: 4vh;
+    }
 
     .keys {
       width: initial;
@@ -342,7 +348,7 @@ main {
     }
 
     .progress-button-wrapper {
-      margin-top: 10vh;
+      margin-top: 0;
 
       button {
         float: none;
@@ -554,6 +560,10 @@ main {
   main {
     #custom-requirement-choicelist-wrapper {
       flex-direction: column;
+
+      .custom-requirement-question-wrapper {
+        width: auto;
+      }
 
       .choice-list-grid-wrapper {
         width: inherit;
