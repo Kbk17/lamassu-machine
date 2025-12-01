@@ -1,21 +1,17 @@
 {
   "name": "lamassu-machine",
   "license": "./LICENSE",
-  "version": "10.1.2",
+  "version": "12.0.0-beta.3",
   "dependencies": {
-    "@apollo/client": "3.11.8",
-    "@dwe.ai/v4l2camera": "^1.2.3",
     "@haensl/subset-sum": "^3.0.5",
-    "@lamassu/coins": "1.4.10",
-    "@lamassu/supyo": "2.0.0",
+    "@lamassu/coins": "1.6.1",
+    "@urql/core": "^5.1.1",
     "async": "~1.5.2",
     "base-x": "3.0.9",
     "bignumber.js": "^4.0.1",
     "cheerio": "^1.0.0-rc.10",
     "clim": "*",
-    "core-js": "^3.21.1",
     "got": "^7.1.0",
-    "graphql": "^16.9.0",
     "knex": "^3.1.0",
     "knex-stringcase": "^1.5.5",
     "lodash": "^4.17.4",
@@ -29,7 +25,7 @@
     "ping": "^0.4.1",
     "semver": "^7.1.3",
     "serialport": "^10.5.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.32.6",
     "tar": "6.1.14",
     "uuid": "9.0.1",
     "ws": "^3.1.0",
@@ -38,8 +34,10 @@
   },
   "optionalDependencies": {
     "@lamassu/bnr-advance": "1.4.0",
-    "@lamassu/genmega": "^1.3.0",
-    "@lamassu/manatee": "^1.0.3"
+    "@lamassu/genmega": "^1.5.3",
+    "@lamassu/manatee": "^1.1.0",
+    "@lamassu/supyo": "2.0.0",
+    "@lamassu/v4l2camera": "1.4.2"
   },
   "devDependencies": {
     "autoprefixer": "9.4.5",

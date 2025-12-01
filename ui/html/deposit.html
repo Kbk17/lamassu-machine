@@ -13,29 +13,41 @@
     <section class="primary-side">
       <h2 class="js-i18n primary-side-title xs-margin-bottom">Send Coins</h2>
       <p class="d1 no-margin-top js-i18n-please-scan"></p>
-      <div class="fiat md-margin-top">
-        <span class="js-amount h2"></span>
-        <span class="js-currency h4"></span>
-        <p class="d2 js-i18n no-margin-top">will be dispensed to you.</p>
+      <div class="d2 fiat sm-margin-top">
+        <span class="js-amount"></span>
+        <span class="js-currency"></span>
+        <span class="js-i18n no-margin-top">will be dispensed to you.</span>
       </div>
       <div class="d2 digital send-notice">
-        <p class="coins-to-address">
-          <span class="js-i18n">You will send us</span>
-          <span class="js-amount"></span>
-          <span class="js-crypto-display-units"></span>
-          <span class="js-i18n">to:</span>
-        </p>
+        <div class="coins-to-address">
+          <p class="js-i18n">You will send us exactly</p>
+          <span class="js-amount h2"></span>
+          <span class="js-crypto-display-units h4"></span>
+          <p class="js-i18n">to:</p>
+        </div>
         <p class="m2 crypto-address"></p>
       </div>
     </section>
 
     <section class="secondary-side qr-secondary-side">
-      <div class="qr-wrapper">
-        <div id="qr-code-deposit" class="qr"></div>
+      <div class="qr-toggle-wrapper">
+        <button id="qr-toggle-standard" class="button qr-toggle-button enabled">Standard QR</button>
+        <button id="qr-toggle-address" class="button qr-toggle-button">Address Only</button>
       </div>
-      <div id="lightning-enabled" class="sm-margin-top">
-        <img class="lightning-img" src="images/lightning.svg"/>
-        <span class="d2">Lightning Enabled</span>
+      <div class="qr-container" id="qr-container-standard">
+        <div class="qr-wrapper">
+          <div id="qr-code-deposit" class="qr"></div>
+        </div>
+        <div id="lightning-enabled" class="sm-margin-top">
+          <img class="lightning-img" src="images/lightning.svg"/>
+          <span class="d2">Lightning Enabled</span>
+        </div>
+      </div>
+      <div class="qr-container" id="qr-container-address" style="display: none;">
+        <div class="qr-wrapper">
+          <div id="qr-code-deposit-address" class="qr"></div>
+        </div>
+        <p class="js-i18n qr-help-text">Use this QR code if you're having trouble scanning the standard one</p>
       </div>
     </section>
   </main>

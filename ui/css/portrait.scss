@@ -31,6 +31,7 @@ main {
     bottom: 5vw;
     flex-direction: column;
   }
+
   #crypto-buttons {
     position: absolute;
     top: 0;
@@ -38,55 +39,69 @@ main {
     padding: 5vw 10vw 0;
     width: 100vw;
     gap: 8vw;
+
     #cryptos {
       margin-top: 20vw;
       bottom: inherit;
       transform: scaleY(-1);
       margin-left: -2vw;
+
       button {
         transform: scaleY(-1);
       }
+
       button:first-child {
         border-radius: 0 0 2vw 2vw;
       }
+
       button:last-child {
         border-radius: 2vw 2vw 0 0;
       }
     }
+
     div {
       padding: 0;
     }
   }
+
   #choose-coin-header {
     padding: 5vw;
     min-height: 8vw;
     position: absolute;
     bottom: 0;
     right: 0;
+
     #languages {
       transform: scaleY(-1);
+
       button {
         transform: scaleY(-1);
       }
+
       button:first-child {
         border-radius: 0 0 2vw 2vw;
       }
+
       button:last-child {
         border-radius: 2vw 2vw 0 0;
       }
     }
+
     .change-language {
       width: 30vw;
     }
-  }  
+  }
+
   main {
     height: 80vh;
     justify-content: space-between;
     margin: 15vh 0 10vh;
   }
+
   footer {
     padding: 5vw;
     min-height: auto;
+
     #coin-redeem {
       margin-left: 0;
     }
@@ -94,24 +109,29 @@ main {
 }
 
 .choose_coin_state.choose-coin-cash-in {
-  #choose-coin-header{
+  #choose-coin-header {
     padding: 5vw;
     min-height: 8vw;
+
     .change-language {
       width: 30vw;
     }
   }
+
   footer {
     padding: 0;
     min-height: inherit;
+
     #crypto-buttons {
       padding: 5vw;
       width: 100vw;
       gap: 8vw;
+
       #cryptos {
         margin-left: -1.2vh;
         margin-bottom: -0.8vh;
       }
+
       div {
         padding: 0;
       }
@@ -178,6 +198,7 @@ main {
   h2 {
     text-align: center;
   }
+
   p {
     max-width: 60vw;
     margin-left: 15vw;
@@ -191,19 +212,21 @@ main {
 }
 
 .scan-image.only-gmuk1 {
-    margin-top: 5vh;
+  margin-top: 5vh;
 }
 
 .scan-image.only-aveiro {
-    margin-top: 5vh;
+  margin-top: 5vh;
 }
 
 .insert_bills_state {
   main {
     text-align: center;
+
     img {
       width: 50vw;
     }
+
     #insert-first-bill-promo-button {
       position: absolute;
       bottom: 10vh;
@@ -235,12 +258,12 @@ main {
     }
 
     .total,
-    .total+p {
+    .total + p {
       width: 40vw;
     }
 
     .total-crypto-rec,
-    .total-crypto-rec+p {
+    .total-crypto-rec + p {
       width: 40vw;
     }
 
@@ -304,6 +327,7 @@ main {
       margin-top: 10vw;
       text-align: center;
     }
+
     padding: 0 15vw;
   }
 
@@ -311,12 +335,21 @@ main {
   #security-keypad,
   #us-ssn-keypad {
     margin-left: 0;
+    margin-top: 0;
+
+    .entry {
+      padding: 0;
+      min-height: 4vh;
+    }
+
     .keys {
       width: initial;
       margin: 0 auto;
     }
+
     .progress-button-wrapper {
-      margin-top: 10vh;
+      margin-top: 0;
+
       button {
         float: none;
         margin: 0 auto;
@@ -331,6 +364,7 @@ main {
     width: 80vw;
     height: initial;
     margin-bottom: 10vh;
+
     #promo-keyboard {
       .key {
         height: 10vw;
@@ -363,6 +397,7 @@ main {
     min-height: 32vh;
     margin-top: 10vh;
   }
+
   header {
     height: 28vh;
   }
@@ -446,11 +481,13 @@ main {
 .dispensing_partial_collect_state {
   main {
     margin-top: 16vh;
+
     .primary-side {
       text-align: center;
       width: 80vw;
       margin: 0 auto 20vh;
     }
+
     .secondary-side {
       img {
         width: 70vw;
@@ -463,6 +500,7 @@ main {
   header {
     height: 10vh;
   }
+
   main {
     margin-bottom: 10vh;
   }
@@ -472,8 +510,10 @@ main {
   main {
     margin-bottom: 4vh;
   }
+
   footer {
     margin-top: 0;
+    margin-bottom: 10vh;
   }
 }
 
@@ -482,6 +522,7 @@ main {
   header {
     height: 36vh;
   }
+
   main {
     margin-top: 10vh;
   }
@@ -519,25 +560,34 @@ main {
   main {
     #custom-requirement-choicelist-wrapper {
       flex-direction: column;
+
+      .custom-requirement-question-wrapper {
+        width: auto;
+      }
+
       .choice-list-grid-wrapper {
         width: inherit;
         min-height: auto;
       }
+
       .choice-list-item {
         font-size: 4vw;
       }
+
       .choice-list-actions-wrapper {
         flex-direction: column;
         margin: 10vh auto 0;
         height: inherit;
         position: static;
         width: auto;
+
         .choice-list-arrows-wrapper {
           display: flex;
           gap: 5vw;
           flex-direction: row;
           align-items: center;
         }
+
         .submit-choice-list-button-wrapper {
           margin-top: 10vh;
         }
@@ -550,14 +600,17 @@ main {
   main {
     margin-top: 10vh;
   }
+
   #custom-requirement-numeric-keypad {
     margin-left: 0;
     flex-direction: column;
     align-items: center;
+
     .keys {
       width: initial;
       margin: 0 0 5vh;
     }
+
     .progress-button-wrapper {
       justify-content: center;
     }
@@ -569,14 +622,17 @@ main {
   main {
     padding: 15vw 5vw 0;
     width: 90vw;
+
     .text-input-fields-wrapper {
       display: flex;
       flex-direction: column;
+
       .text-input-field {
         width: 100%;
       }
     }
   }
+
   footer {
     margin: 5vh 0 0;
     padding: 0;
@@ -587,6 +643,7 @@ main {
       margin: 0;
     }
   }
+
   #custom-requirement-text-keyboard {
     .key {
       font-size: 3vw;
@@ -597,13 +654,13 @@ main {
   }
 }
 
-.external_permission_state.info{
+.external_permission_state.info {
   main {
     margin-top: 0
   }
 }
 
-.custom_permission_state.info{
+.custom_permission_state.info {
   main {
     margin-top: 0
   }
@@ -613,6 +670,7 @@ main {
 .send_only_state {
   header {
     height: 36vh;
+
     img {
       width: 20vh;
     }
@@ -624,9 +682,11 @@ main {
   main {
     min-height: 25vh;
   }
+
   .text-content {
     max-width: none;
     min-width: initial;
+
     .send-only-total {
       gap: 15vw;
       min-width: initial;
@@ -638,13 +698,14 @@ main {
   header {
     height: 36vh;
   }
+
   main {
     margin-top: 0;
   }
 }
 
 .minimum_tx_state {
-  .header{
+  .header {
     margin-top: 27vh;
   }
 }
@@ -654,16 +715,19 @@ main {
     .primary-side {
       text-align: center;
     }
+
     #choose-fiat-promo-button {
       position: absolute;
       bottom: 5vh;
       left: calc(50vh - 50% - 6vh);
       margin: 0;
     }
+
     #choose-fiat-code-added {
       margin: 1vh;
     }
   }
+
   #js-fiat-buttons {
     position: absolute;
     flex-wrap: wrap;
@@ -672,6 +736,7 @@ main {
     justify-content: center;
     height: initial;
     padding: 0 5vw;
+
     .cash-button {
       margin: 0;
       min-width: 40vw;
@@ -685,6 +750,7 @@ main {
     .contacts {
       margin-top: 3vh;
     }
+
     .secondary-side {
       align-items: center;
     }
@@ -695,8 +761,13 @@ main {
   .primary-side {
     align-items: center;
     margin-top: 25vh;
-    margin-bottom: 5vh;
+    margin-bottom: 0;
+
+    .primary-side-title {
+      margin-top: 3vh;
+    }
   }
+
   .secondary-side {
     .qr-wrapper {
       position: absolute;
@@ -704,6 +775,7 @@ main {
       transform: scale(0.6);
       margin-top: 0;
     }
+
     .take-a-photo {
       margin: 5vh 0 0;
       max-width: 80vw;
@@ -720,21 +792,26 @@ main {
     margin-top: 28vh;
     text-align: center;
   }
+
   .print-receipt-wrapper {
     gap: 5vw;
     justify-content: center;
+
     button {
       margin: 0;
     }
   }
+
   .qr-section {
     transform: scale(0.6);
     position: absolute;
     top: 0;
+
     div {
       margin-top: 0;
     }
   }
+
   .take-a-photo {
     margin: 5vh 0 0;
     max-width: 80vw;
@@ -745,18 +822,31 @@ main {
   }
 }
 
-.deposit_state {
-  .primary-side {
-    margin-top: 35vh;
-    text-align: center;
+.deposit_state, .external_compliance_state {
+  main {
+    flex-direction: column-reverse;
+    justify-content: start;
   }
+
+  .primary-side {
+    text-align: center;
+    margin-top: 10vh;
+  }
+
   .qr-wrapper {
-    transform: scale(0.6);
-    position: absolute;
-    top: 0;
+    width: 25vh;
+    height: 25vh;
+
     div {
+      transform: scale(0.6);
       margin-top: 0;
     }
+  }
+}
+
+.deposit_state {
+  .primary-side {
+    margin-top: 2vh;
   }
 }
 
@@ -765,21 +855,26 @@ main {
     margin-top: 32vh;
     text-align: center;
   }
+
   .qr-wrapper {
     transform: scale(0.6);
     position: absolute;
     top: 0;
+
     div {
       margin-top: 0;
     }
   }
+
   .print-receipt-wrapper {
     gap: 5vw;
     justify-content: center;
+
     button {
       margin: 0;
     }
   }
+
   .take-a-photo {
     margin: 5vh 0 0;
     max-width: 80vw;
@@ -795,14 +890,17 @@ main {
     margin-top: 32vh;
     text-align: center;
   }
+
   .qr-wrapper {
     transform: scale(0.6);
     position: absolute;
     top: 0;
+
     div {
       margin-top: 0;
     }
   }
+
   .take-a-photo {
     margin: 5vh 0 0;
     max-width: 80vw;
@@ -810,5 +908,20 @@ main {
     align-items: center;
     text-align: center;
     gap: 1vh;
+  }
+}
+
+#liveview-div {
+  max-width: 90%;
+  margin-top: 100px;
+}
+
+.reuse_last_address_state {
+  main {
+    width: 80vw;
+  }
+
+  h3, button {
+    line-height: 1;
   }
 }

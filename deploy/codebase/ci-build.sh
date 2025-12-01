@@ -76,6 +76,7 @@ cp -a $BUILD_FILES_DIR/fonts/* $TARGET_MACHINE_DIR/ui/css/fonts
 
 # Create lists of boards and models
 declare -A boards_and_models=(
+  ["acp"]="douro"
   ["upboard"]="sintra gaia tejo aveiro"
   ["up4000"]="sintra gaia tejo aveiro grandola"
   ["coincloud"]="jcm-ipro-rc mei-bnr mei-scr"

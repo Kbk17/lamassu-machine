@@ -5,7 +5,7 @@ const fs = require('fs');
 const { mkdir, writeFile } = require('fs/promises');
 const path = require('path');
 const async = require('./async');
-const report = require('./report').report;
+const report = require('./report')
 
 const hardwareCode = process.argv[2];
 const machineCode = process.argv[3];
@@ -14,23 +14,16 @@ const newPath = process.argv[4];
 const basePath = newPath ? '/opt/lamassu-updates/extract' : '/tmp/extract'
 const packagePath = `${basePath}/package/subpackage`
 
-const machineWithMultipleCodes = ['upboard', 'up4000', 'coincloud', 'generalbytes', 'genmega']
+const supportedMachines = ['acp', 'upboard', 'up4000', 'coincloud', 'generalbytes', 'genmega']
 
-const hardwarePath = machineWithMultipleCodes.includes(hardwareCode) ?
-  `${packagePath}/hardware/${hardwareCode}/${machineCode}` :
-  `${packagePath}/hardware/${hardwareCode}`
-
-const supervisorPath = machineWithMultipleCodes.includes(hardwareCode) ?
-  `${packagePath}/supervisor/${hardwareCode}/${machineCode}` :
-  `${packagePath}/supervisor/${hardwareCode}`
-
-const udevPath = `${packagePath}/udev/aaeon`
+const hardwarePath = `${packagePath}/hardware/${hardwareCode}/${machineCode}`
+const supervisorPath = `${packagePath}/supervisor/${hardwareCode}/${machineCode}`
 
 const TIMEOUT = 600000;
-const applicationParentFolder = hardwareCode === 'aaeon' ? '/opt/apps/machine' : '/opt'
+const applicationParentFolder = '/opt'
 
-const LOG = msg => report(null, msg, () => {})
-const ERROR = err => report(err, null, () => {})
+const LOG = msg => report.report(null, msg, () => {})
+const ERROR = err => report.report(err, null, () => {})
 
 function command(cmd, cb) {
   LOG(`Running command \`${cmd}\``)
@@ -59,28 +52,14 @@ const isLMX = () =>
 
 const getOSUser = () => {
   try {
-    return (!machineWithMultipleCodes.includes(hardwareCode) || isLMX()) ? 'lamassu' : 'ubilinux'
+    return isLMX() ? 'lamassu' : 'ubilinux'
   } catch (err) {
     return 'ubilinux'
   }
 }
 
-function updateUdev (cb) {
-  LOG("Updating udev rules")
-  if (hardwareCode !== 'aaeon') return cb()
-  return async.series([
-    async.apply(command, `cp ${udevPath}/* /etc/udev/rules.d/`),
-    async.apply(command, 'udevadm control --reload-rules'),
-    async.apply(command, 'udevadm trigger'),
-  ], (err) => {
-    if (err) throw err;
-    cb()
-  })
-}
-
-function updateSupervisor (cb) {
+function updateSupervisor (isOffline, cb) {
   LOG("Updating Supervisor services")
-  if (hardwareCode === 'aaeon') return cb()
 
   const getServices = () => {
     const extractServices = stdout => {
@@ -109,7 +88,7 @@ function updateSupervisor (cb) {
   }
 
   const osuser = getOSUser()
-  const services = getServices()
+  const services = isOffline ? [] : getServices()
   const allServices = services.join(' ')
   const servicesNoCalibrateScreen = services.filter(service => service !== 'calibrate-screen').join(' ')
 
@@ -117,17 +96,24 @@ function updateSupervisor (cb) {
     async.apply(command, `cp ${supervisorPath}/* /etc/supervisor/conf.d/`),
     async.apply(command, `sed -i 's|^user=.*\$|user=${osuser}|;' /etc/supervisor/conf.d/lamassu-browser.conf || true`),
     async.apply(command, `rm -f /etc/supervisor/conf.d/calibrate-screen.conf`),
-    async.apply(command, `supervisorctl update ${allServices}`),
-    async.apply(command, `supervisorctl stop ${servicesNoCalibrateScreen}`),
   ]
 
+  if (!isOffline) {
+    commands.push(async.apply(command, `supervisorctl update ${allServices}`))
+    commands.push(async.apply(command, `supervisorctl stop ${servicesNoCalibrateScreen}`))
+  }
+
   if (machineCode === 'aveiro') {
-    commands.push(async.apply(command, `supervisorctl stop lamassu-gsr50-devstart lamassu-gsr50`))
+    if (!isOffline) {
+      commands.push(async.apply(command, `supervisorctl stop lamassu-gsr50-devstart lamassu-gsr50`))
+    }
     commands.push(async.apply(command, `cp ${applicationParentFolder}/lamassu-machine/lib/gsr50/binaries/* /opt/FujitsuGSR50/`))
     commands.push(async.apply(command, `chmod +x /opt/FujitsuGSR50/FujitsuGSR50`))
   }
 
-  commands.push(async.apply(command, `supervisorctl restart ${servicesNoCalibrateScreen}`))
+  if (!isOffline) {
+    commands.push(async.apply(command, `supervisorctl restart ${servicesNoCalibrateScreen}`))
+  }
 
   async.series(commands, err => {
     if (err) throw err;
@@ -142,12 +128,19 @@ const installSystemdOverride = (unit, content) => {
     .then(() => writeFile(overrideFile, content, { mode: 0o600, flush: true }))
 }
 
-const updateSystemd = cb => {
+const updateSystemd = (isOffline, cb) => {
   LOG(
     isLMX() ?
       "Delay LightDM's start and make Supervisor wait for X" :
       "Make Supervisor wait for X"
   )
+
+  const systemctl_daemon_reload = () =>
+    new Promise((resolve, reject) =>
+      cp.execFile('systemctl', ['daemon-reload'], { timeout: 10000 },
+        (error, _stdout, _stderr) => error ? reject(error) : resolve()
+      )
+    )
 
   const overrides = [
     ["supervisor.service", "[Unit]\nAfter=multi-user.target\nWants=multi-user.target\n"],
@@ -156,17 +149,13 @@ const updateSystemd = cb => {
     overrides.push(["lightdm.service", "[Service]\nExecStartPre=/bin/sleep 3\n"])
 
   Promise.all(overrides.map(([unit, content]) => installSystemdOverride(unit, content)))
-    .then(() => new Promise((resolve, reject) =>
-      cp.execFile('systemctl', ['daemon-reload'], { timeout: 10000 },
-        (error, _stdout, _stderr) => error ? reject(error) : resolve()
-      )
-    ))
+    .then(() => isOffline || systemctl_daemon_reload())
     .then(() => cb())
     .catch(err => cb(err))
 }
 
-const addUserToGroups = cb => {
-  if (!isLMX())
+const addUserToGroups = (isOffline, cb) => {
+  if (isOffline || !isLMX())
     return cb()
 
   LOG("Adding user lamassu to nopasswdlogin group")
@@ -179,7 +168,10 @@ const addUserToGroups = cb => {
     .catch(err => cb(err))
 }
 
-const disableSSH = cb => {
+const disableSSH = (isOffline, cb) => {
+  if (isOffline)
+    return cb()
+
   LOG("Disable SSH and close port 22")
   return async.series([
     async.apply(command, 'systemctl stop ssh'),
@@ -192,7 +184,10 @@ const disableSSH = cb => {
   })
 }
 
-function restartWatchdogService (cb) {
+function restartWatchdogService (isOffline, cb) {
+  if (isOffline)
+    return cb()
+
   async.series([
     async.apply(command, 'supervisorctl update'),
     async.apply(command, 'supervisorctl restart lamassu-watchdog'),
@@ -202,16 +197,30 @@ function restartWatchdogService (cb) {
   })
 }
 
-function updateAcpChromium (cb) {
-  LOG("Updating ACP Chromium")
-  if (hardwareCode !== 'aaeon') return cb()
-  return async.series([
-    async.apply(command, `cp ${hardwarePath}/sencha-chrome.conf /home/iva/.config/upstart/`),
-    async.apply(command, `cp ${hardwarePath}/start-chrome /home/iva/`),
-  ], function(err) {
-    if (err) throw err;
+const disableUSBAutosuspend = cb => {
+  LOG("Disabling USB autosuspend")
+  const srcRule = `${applicationParentFolder}/lamassu-machine/hardware/system/${hardwareCode}/${machineCode}/udev/99-usb-no-autosuspend.rules`
+  const dstRule = "/etc/udev/rules.d/99-usb-no-autosuspend.rules"
+  try {
+    if (!fs.existsSync(srcRule) || fs.existsSync(dstRule))
+      return cb()
+    fs.copyFileSync(srcRule, dstRule, fs.constants.COPYFILE_EXCL)
     cb()
-  });
+  } catch (err) {
+    cb(err)
+  }
+}
+
+const installUVCQuirk = cb => {
+  LOG("Installing UVC quirks")
+  const uvcvideo = "/etc/modprobe.d/uvcvideo.conf"
+  try {
+    if (fs.existsSync(uvcvideo)) return cb()
+    fs.writeFileSync(uvcvideo, "options uvcvideo quirks=0x80\n")
+    cb()
+  } catch (err) {
+    cb(err)
+  }
 }
 
 function installDeviceConfig (cb) {
@@ -239,9 +248,7 @@ function installDeviceConfig (cb) {
       newDeviceConfig.cryptomatModel = currentDeviceConfig.cryptomatModel
     }
     if (currentDeviceConfig.billDispenser && newDeviceConfig.billDispenser) {
-      newDeviceConfig.billDispenser.model = currentDeviceConfig.billDispenser.model
-      newDeviceConfig.billDispenser.device = currentDeviceConfig.billDispenser.device
-      newDeviceConfig.billDispenser.cassettes = currentDeviceConfig.billDispenser.cassettes
+      newDeviceConfig.billDispenser = currentDeviceConfig.billDispenser
     }
     if (currentDeviceConfig.billValidator) {
       newDeviceConfig.billValidator = currentDeviceConfig.billValidator
@@ -272,25 +279,30 @@ function installDeviceConfig (cb) {
   }
 }
 
-const upgrade = () => {
-  const arch = hardwareCode === 'aaeon' ? '386' :
-    hardwareCode === 'ssuboard' ? 'arm32' :
-    'amd64'
+const upgrade = (isOffline = false) => {
+  if (isOffline)
+    report.setOffline()
+
+  if (!supportedMachines.includes(hardwareCode)) {
+    const errorStr = `trying to update unsupported board ${hardwareCode}`
+    ERROR(errorStr)
+    return Promise.reject(errorStr)
+  }
 
   const commands = [
     async.apply(command, `tar zxf ${basePath}/package/subpackage.tgz -C ${basePath}/package/`),
     async.apply(command, `rm -rf ${applicationParentFolder}/lamassu-machine/node_modules/`),
     async.apply(command, `cp -PR ${basePath}/package/subpackage/lamassu-machine ${applicationParentFolder}`),
-    async.apply(command, `mv ${applicationParentFolder}/lamassu-machine/verify/verify.${arch} ${applicationParentFolder}/lamassu-machine/verify/verify`),
+    async.apply(command, `mv ${applicationParentFolder}/lamassu-machine/verify/verify.amd64 ${applicationParentFolder}/lamassu-machine/verify/verify`),
+    async.apply(disableUSBAutosuspend),
+    async.apply(installUVCQuirk),
     async.apply(installDeviceConfig),
-    async.apply(updateSupervisor),
-    async.apply(updateSystemd),
-    async.apply(addUserToGroups),
-    async.apply(disableSSH),
-    async.apply(updateUdev),
-    async.apply(updateAcpChromium),
-    async.apply(report, null, 'finished.'),
-    async.apply(restartWatchdogService),
+    async.apply(updateSupervisor, isOffline),
+    async.apply(updateSystemd, isOffline),
+    async.apply(addUserToGroups, isOffline),
+    async.apply(disableSSH, isOffline),
+    async.apply(report.report, null, 'finished.'),
+    async.apply(restartWatchdogService, isOffline),
   ]
 
   return new Promise((resolve, reject) => {

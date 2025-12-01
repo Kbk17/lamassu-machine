@@ -28,7 +28,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: build-scripts/Dockerfile.ci
+          file: build-scripts/ci.Dockerfile
           load: true
           tags: ci_image:latest
           cache-from: type=local,src=/tmp/.buildx-cache

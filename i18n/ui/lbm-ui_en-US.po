@@ -14,6 +14,22 @@ msgstr "For both your privacy and safety against scams, please generate a new on
 msgid "Start over"
 msgstr "Start over"
 
+#: On screen: address-reuse
+msgid "Note! You must own this address and be able to move the funds on it."
+msgstr "Note! You must own this address and be able to move the funds on it."
+
+#: On screen: address-reuse
+msgid "We are not responsible for funds sent to an address you no longer control."
+msgstr "We are not responsible for funds sent to an address you no longer control."
+
+#: On screen: address-reuse
+msgid "Yes, use this address"
+msgstr "Yes, use this address"
+
+#: On screen: address-reuse
+msgid "No, scan a different wallet"
+msgstr "No, scan a different wallet"
+
 #: On screen: are-you-sure
 msgid "Are you sure?"
 msgstr "Are you sure?"
@@ -101,6 +117,10 @@ msgstr "Please contact the operator if you wish to learn more."
 #: On screen: choose_coin
 msgid "Languages"
 msgstr "Languages"
+
+#: On screen: choose_coin
+msgid "Rates"
+msgstr "Rates"
 
 #: On screen: choose_coin
 msgid "Redeem"
@@ -195,12 +215,16 @@ msgid "will be dispensed to you."
 msgstr "will be dispensed to you."
 
 #: On screen: deposit
-msgid "You will send us"
-msgstr "You will send us"
+msgid "You will send us exactly"
+msgstr "You will send us exactly"
 
 #: On screen: deposit
 msgid "to:"
 msgstr "to:"
+
+#: On screen: deposit
+msgid "Use this QR code if you're having trouble scanning the standard one"
+msgstr "Use this QR code if you're having trouble scanning the standard one"
 
 #: On screen: dispensing
 msgid "Dispensing..."
@@ -279,12 +303,32 @@ msgid "In order to transact further, we will need to verify your identity throug
 msgstr "In order to transact further, we will need to verify your identity through an external service. In the meantime, your current transaction will be completed and your funds sent."
 
 #: On screen: external-validation
-msgid "To proceed, scan the QR code below and follow the instructions on the website it takes you to. After a quick verification, you may purchase more at this machine."
-msgstr "To proceed, scan the QR code below and follow the instructions on the website it takes you to. After a quick verification, you may purchase more at this machine."
+msgid "To proceed, scan the QR code and follow the instructions on the website it takes you to. After a quick verification, you may purchase more at this machine."
+msgstr "To proceed, scan the QR code and follow the instructions on the website it takes you to. After a quick verification, you may purchase more at this machine."
 
 #: On screen: external-validation
 msgid "OK"
 msgstr "OK"
+
+#: On screen: compliance-timeout
+msgid "Still there?"
+msgstr "Still there?"
+
+#: On screen: compliance-timeout
+msgid "You'll need to scan the QR code on the previous screen to complete registration."
+msgstr "You'll need to scan the QR code on the previous screen to complete registration."
+
+#: On screen: compliance-timeout
+msgid "If you haven't done so yet, press 'Yes' to go back and scan."
+msgstr "If you haven't done so yet, press 'Yes' to go back and scan."
+
+#: On screen: compliance-timeout
+msgid "If you cancel, you won't be able to transact more until you register."
+msgstr "If you cancel, you won't be able to transact more until you register."
+
+#: On screen: compliance-timeout
+msgid "Yes, I need more time"
+msgstr "Yes, I need more time"
 
 #: On screen: facephoto
 msgid "Look at the dot"
@@ -594,6 +638,22 @@ msgstr "If you are sure of the code, please contact the operator for clarificati
 msgid "Enter a different code"
 msgstr "Enter a different code"
 
+#: On screen: rates
+msgid "Exchange Rates"
+msgstr "Exchange Rates"
+
+#: On screen: rates
+msgid "Buy"
+msgstr "Buy"
+
+#: On screen: rates
+msgid "Crypto"
+msgstr "Crypto"
+
+#: On screen: rates
+msgid "Sell"
+msgstr "Sell"
+
 #: On screen: recycler-continue
 msgid "Depositing bills..."
 msgstr "Depositing bills..."
@@ -681,10 +741,6 @@ msgstr "Yes, verify phone"
 #: On screen: suspicious-address
 msgid "Suspicious address"
 msgstr "Suspicious address"
-
-#: On screen: suspicious-address
-msgid "This address may be associated with a deceptive offer or a prohibited group. Please make sure you're using an address from your own wallet."
-msgstr "This address may be associated with a deceptive offer or a prohibited group. Please make sure you're using an address from your own wallet."
 
 #: On screen: booting
 msgid "Booting up..."
@@ -942,6 +998,10 @@ msgstr "Verifying photo..."
 msgid "We got this"
 msgstr "We got this"
 
+#: On screen: withdraw_failure
+msgid "Our Internet was down for a bit but you'll receive your funds as soon as our connection is back."
+msgstr "Our Internet was down for a bit but you'll receive your funds as soon as our connection is back."
+
 #: On screen: dynamic
 msgid "More"
 msgstr "More"
@@ -1039,6 +1099,10 @@ msgid "Invalid %s address"
 msgstr "Invalid %s address"
 
 #: On screen: dynamic
+msgid "Would you like to send to the %s address you last used?"
+msgstr "Would you like to send to the %s address you last used?"
+
+#: On screen: dynamic
 msgid "Transaction limit reached, please cash out"
 msgstr "Transaction limit reached, please cash out"
 
@@ -1053,6 +1117,10 @@ msgstr "Discount added (%s off commissions)"
 #: On screen: dynamic
 msgid "An error occurred, try again."
 msgstr "An error occurred, try again."
+
+#: On screen: dynamic
+msgid "This address may be associated with a deceptive offer or a prohibited group. Please make sure you\'re using an address from your own wallet."
+msgstr "This address may be associated with a deceptive offer or a prohibited group. Please make sure you\'re using an address from your own wallet."
 
 #: On screen: coins
 msgid "Bitcoin"
@@ -1077,4 +1145,12 @@ msgstr "Dash"
 #: On screen: coins
 msgid "Bitcoin Cash"
 msgstr "Bitcoin Cash"
+
+#: On screen: coins
+msgid "Monero"
+msgstr "Monero"
+
+#: On screen: coins
+msgid "USDT"
+msgstr "USDT"
 

@@ -1,10 +1,10 @@
 <section
-  class="viewport address_reuse_state info cash-in-color"
-  data-tr-section="address-reuse"
-  data-screentype="info-action-tp"
+    class="viewport address_reuse_state info cash-in-color"
+    data-tr-section="address-reuse"
+    data-screentype="info-action-tp"
 >
   <header>
-    <img src="images/address-reuse.svg" />
+    <img src="images/address-reuse.svg"/>
   </header>
 
   <main>
@@ -14,7 +14,8 @@
         It looks like you've used this address already.
       </p>
       <p class="js-i18n d2">
-        For both your privacy and safety against scams, please generate a new one from your wallet and scan that one instead.
+        For both your privacy and safety against scams, please generate a new one from your wallet and scan that one
+        instead.
       </p>
     </div>
   </main>
@@ -25,3 +26,23 @@
     </button>
   </footer>
 </section>
+
+<section class="viewport reuse_last_address_state info cash-in-color" data-tr-section="address-reuse">
+  <main>
+    <h3 class="js-i18n-want-reuse sm-margin-bottom"></h3>
+    <p class="d2 no-margin-bottom last-use-crypto-address">
+    </p>
+    <p class="js-i18n d2">
+      Note! You must own this address and be able to move the funds on it.
+    </p>
+    <p class="js-i18n d2">
+      We are not responsible for funds sent to an address you no longer control.
+    </p>
+  </main>
+  <footer class="xl-margin-top">
+    <button class="button filled-progress-button js-i18n" id="reuse-last-address-yes">Yes, use this address</button>
+    <button class="button bordered-progress-button js-i18n" id="reuse-last-address-no">No, scan a different wallet
+    </button>
+  </footer>
+</section>
+

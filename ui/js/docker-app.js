@@ -1,6 +1,8 @@
 /* globals $, URLSearchParams, WebSocket, locales, Keyboard, Keypad, Jed, BigNumber, HOST, PORT, Origami, kjua, TimelineMax, Two */
 'use strict';
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 var queryString = window.location.search;
@@ -9,6 +11,7 @@ var DEBUG_MODE = params.get('debug');
 var CASH_OUT_QR_COLOR = '#403c51';
 var CASH_IN_QR_COLOR = '#0e4160';
 var NUMBER_OF_BUTTONS = 3;
+var LIVEVIEW_PORT = 3456; // lib/capture/liveview/http.js
 
 var scrollSize = 0;
 var textHeightQuantity = 0;
@@ -49,6 +52,9 @@ var emailKeyboard = null;
 var customRequirementNumericalKeypad = null;
 var customRequirementTextKeyboard = null;
 var customRequirementChoiceList = null;
+var viewportButtonEventsActive = null;
+var viewportEvents = {};
+var liveviewEnabled = false;
 
 var MUSEO = ['ca', 'cs', 'da', 'de', 'en', 'es', 'et', 'fi', 'fr', 'hr', 'hu', 'it', 'lt', 'nb', 'nl', 'pl', 'pt', 'ro', 'sl', 'sv', 'tr'];
 
@@ -64,10 +70,85 @@ function connect() {
   };
 }
 
+function setupConsoleErrorCapture() {
+  var originalError = console.error;
+  var originalWarn = console.warn;
+
+  function sendLogToWebsocket(level, message, details) {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      try {
+        var payload = {
+          type: 'consoleLog',
+          level: level,
+          message: message,
+          timestamp: new Date().toISOString()
+        };
+
+        if (details) {
+          payload.details = details;
+        }
+
+        websocket.send(JSON.stringify(payload));
+      } catch (e) {
+        originalError('Failed to send ' + level + ' to server:', e);
+      }
+    }
+  }
+
+  function formatConsoleArgs(args) {
+    return Array.prototype.slice.call(args).map(function (arg) {
+      if ((typeof arg === 'undefined' ? 'undefined' : _typeof(arg)) === 'object') {
+        return JSON.stringify(arg);
+      }
+      return String(arg);
+    }).join(' ');
+  }
+
+  console.error = function () {
+    originalError.apply(console, arguments);
+    var errorMessage = formatConsoleArgs(arguments);
+    sendLogToWebsocket('error', errorMessage);
+  };
+
+  console.warn = function () {
+    originalWarn.apply(console, arguments);
+    var warnMessage = formatConsoleArgs(arguments);
+    sendLogToWebsocket('warn', warnMessage);
+  };
+
+  window.addEventListener('error', function (event) {
+    var errorInfo = {
+      message: event.message,
+      source: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error ? event.error.stack : null
+    };
+
+    sendLogToWebsocket('error', 'Uncaught error: ' + errorInfo.message, errorInfo);
+  });
+
+  window.addEventListener('unhandledrejection', function (event) {
+    var errorInfo = {
+      reason: event.reason,
+      promise: event.promise
+    };
+
+    var message = 'Unhandled promise rejection: ' + (event.reason ? event.reason.toString() : 'Unknown');
+    sendLogToWebsocket('error', message, errorInfo);
+  });
+}
+
 function verifyConnection() {
   if (websocket.readyState === websocket.CLOSED) {
     connect();
   }
+}
+
+function emitEvent(button, data) {
+  var res = { button: button };
+  if (data || data === null) res.data = data;
+  if (websocket) websocket.send(JSON.stringify(res));
 }
 
 function buttonPressed(button, data) {
@@ -92,7 +173,13 @@ var displayBTC = 'Bitcoin<br>(LN)';
 var LN = 'LN';
 var BTC = 'BTC';
 
+function setStateFromAction(action) {
+  disableLiveview();
+  setState(window.snakecase(action));
+}
+
 function processData(data) {
+  if (data.screenOpts) setScreenOptions(data.screenOpts);
   if (data.localeInfo) setLocaleInfo(data.localeInfo);
   if (data.locale) setLocale(data.locale);
   if (data.supportedCoins) setCoins(data.supportedCoins);
@@ -112,7 +199,10 @@ function processData(data) {
   if (data.cassettes) buildCassetteButtons(data.cassettes, NUMBER_OF_BUTTONS);
   if (data.readingBills) readingBills(data.readingBills);
   if (data.cryptoCode) translateCoin(data.cryptoCode);
-  if (data.tx && data.tx.cashInFee) setFixedFee(data.tx.cashInFee);
+  if (data.lastUsedAddress) lastUsedAddress(data.lastUsedAddress);
+  if (data.tx) {
+    if (data.tx.cashInFee) setFixedFee(data.tx.cashInFee);else if (data.tx.cashOutFee) setFixedFee(data.tx.cashOutFee);
+  }
   if (data.terms) setTermsScreen(data.terms);
   if (data.dispenseBatch) dispenseBatch(data.dispenseBatch);
   if (data.direction) setDirection(data.direction);
@@ -120,10 +210,12 @@ function processData(data) {
   if (data.hardLimit) setHardLimit(data.hardLimit);
   if (data.cryptomatModel) setCryptomatModel(data.cryptomatModel);
   if (data.areThereAvailablePromoCodes !== undefined) setAvailablePromoCodes(data.areThereAvailablePromoCodes);
-
+  if (data.allRates && data.ratesFiat) setRates(data.allRates, data.ratesFiat);
+  if (Object.hasOwn(data, 'liveviewEnabled')) liveviewEnabled = data.liveviewEnabled;
   if (data.tx && data.tx.discount) setCurrentDiscount(data.tx.discount);
   if (data.receiptStatus) setReceiptPrint(data.receiptStatus, null);
   if (data.smsReceiptStatus) setReceiptPrint(null, data.smsReceiptStatus);
+  if (data.automaticPrint) setAutomaticPrint();
 
   if (data.context) {
     $('.js-context').hide();
@@ -286,9 +378,11 @@ function processData(data) {
       setState('action_required_maintenance');
       break;
     case 'cashSlotRemoveBills':
+      document.getElementById('cash-slot-bills-removed').disabled = false;
       setState('cash_slot_remove_bills');
       break;
     case 'leftoverBillsInCashSlot':
+      document.getElementById('leftover-bills-removed').disabled = false;
       setState('leftover_bills_in_cash_slot');
       break;
     case 'invalidAddress':
@@ -298,8 +392,19 @@ function processData(data) {
       clearTimeout(complianceTimeout);
       externalCompliance(data.externalComplianceUrl);
       break;
+    case 'suspiciousAddress':
+      suspiciousAddress(data.blacklistMessage);
+      setState('suspicious_address');
+      break;
+    case 'rates':
+      setState('rates');
+      break;
+    case 'scanAddress':
+      setStateFromAction('scanAddress');
+      enableLiveview();
+      break;
     default:
-      if (data.action) setState(window.snakecase(data.action));
+      if (data.action) setStateFromAction(data.action);
   }
 }
 
@@ -340,6 +445,10 @@ function externalPermission() {
 }
 
 function customInfoRequestPermission(customInfoRequest) {
+  if (customInfoRequest.disablePermissionScreen) {
+    emitEvent('permissionCustomInfoRequest');
+    return;
+  }
   $('#custom-screen1-title').text(customInfoRequest.screen1.title);
   $('#custom-screen1-text').text(customInfoRequest.screen1.text);
   setComplianceTimeout(null, 'finishBeforeSms');
@@ -668,6 +777,7 @@ $(document).ready(function () {
   });
 
   if (DEBUG_MODE !== 'demo') {
+    setupConsoleErrorCapture();
     connect();
     setInterval(verifyConnection, 1000);
   }
@@ -689,15 +799,25 @@ $(document).ready(function () {
   setupButton('recycler-continue-start', 'recyclerContinue');
   setupButton('recycler-continue', 'recyclerContinue');
   setupButton('recycler-finish', 'sendCoins');
-  setupButton('cash-slot-bills-removed', 'cashSlotBillsRemoved');
-  setupButton('leftover-bills-removed', 'leftoverBillsRemoved');
+
+  var leftoverBillsRemovedButton = document.getElementById('leftover-bills-removed');
+  touchEvent(leftoverBillsRemovedButton, function () {
+    leftoverBillsRemovedButton.disabled = true;
+    buttonPressed('leftoverBillsRemoved', undefined);
+  });
+
+  var cashSlotBillsRemovedButton = document.getElementById('cash-slot-bills-removed');
+  touchEvent(cashSlotBillsRemovedButton, function () {
+    cashSlotBillsRemovedButton.disabled = true;
+    buttonPressed('cashSlotBillsRemoved', undefined);
+  });
 
   var blockedCustomerOk = document.getElementById('blocked-customer-ok');
   touchEvent(blockedCustomerOk, function () {
     buttonPressed('blockedCustomerOk');
   });
   var insertBillCancelButton = document.getElementById('insertBillCancel');
-  touchImmediateEvent(insertBillCancelButton, function () {
+  touchImmediateEvent(insertBillCancelButton, null, function () {
     setBuyerAddress(null);
     buttonPressed('cancelInsertBill');
   });
@@ -709,11 +829,7 @@ $(document).ready(function () {
   });
 
   setupImmediateButton('scanCancel', 'cancelScan');
-  setupImmediateButton('completed_viewport', 'completed');
-  setupImmediateButton('withdraw_failure_viewport', 'completed');
-  setupImmediateButton('out_of_coins_viewport', 'completed');
-  setupImmediateButton('fiat_receipt_viewport', 'completed');
-  setupImmediateButton('fiat_complete_viewport', 'completed');
+  enableViewportButtonEvents();
   setupImmediateButton('chooseFiatCancel', 'chooseFiatCancel');
   setupImmediateButton('depositCancel', 'depositCancel');
   setupImmediateButton('printer-scan-cancel', 'cancelScan');
@@ -728,7 +844,7 @@ $(document).ready(function () {
   setupButton('choose-fiat-promo-button', 'insertPromoCode');
 
   var promoCodeCancelButton = document.getElementById('promo-code-cancel');
-  touchImmediateEvent(promoCodeCancelButton, function () {
+  touchImmediateEvent(promoCodeCancelButton, null, function () {
     promoKeyboard.deactivate.bind(promoKeyboard);
     buttonPressed('cancelPromoCode');
   });
@@ -808,11 +924,16 @@ $(document).ready(function () {
   setupButton('address-reuse-start-over', 'idle');
   setupButton('suspicious-address-start-over', 'idle');
 
+  setupButton('reuse-last-address-yes', 'reuseLastAddress');
+  setupButton('reuse-last-address-no', 'invalidAddressTryAgain');
+
   setupButton('sanctions-failure-ok', 'idle');
   setupButton('limit-reached-ok', 'idle');
   setupButton('hard-limit-reached-ok', 'idle');
   setupButton('deposit-timeout-sent-yes', 'depositTimeout');
   setupButton('deposit-timeout-sent-no', 'depositTimeoutNotSent');
+  setupButton('external-compliance-timeout-yes', 'externalComplianceTimeoutYes');
+  setupButton('external-compliance-timeout-no', 'externalComplianceTimeoutNo');
   setupButton('out-of-cash-ok', 'idle');
   setupButton('cash-in-disabled-ok', 'idle');
   setupButton('cash-in-only-ok', 'idle');
@@ -843,7 +964,28 @@ $(document).ready(function () {
   setupButton('terms-ok', 'termsAccepted');
   setupButton('terms-ko', 'idle');
 
+  setupImmediateButton('rates-close', 'idle');
+  setupButton('rates-section-button', 'ratesScreen');
+
   setupButton('maintenance_restart', 'maintenanceRestart');
+
+  // Setup deposit QR code toggle buttons
+  var qrToggleStandard = document.getElementById('qr-toggle-standard');
+  var qrToggleAddress = document.getElementById('qr-toggle-address');
+
+  touchEvent(qrToggleStandard, function () {
+    $('#qr-toggle-standard').addClass('enabled');
+    $('#qr-toggle-address').removeClass('enabled');
+    $('#qr-container-standard').show();
+    $('#qr-container-address').hide();
+  });
+
+  touchEvent(qrToggleAddress, function () {
+    $('#qr-toggle-address').addClass('enabled');
+    $('#qr-toggle-standard').removeClass('enabled');
+    $('#qr-container-address').show();
+    $('#qr-container-standard').hide();
+  });
 
   calculateAspectRatio();
 
@@ -916,29 +1058,22 @@ $(document).ready(function () {
   setupButton('facephoto-scan-failed-cancel', 'finishBeforeSms');
   setupButton('facephoto-scan-failed-cancel2', 'finishBeforeSms');
 
-  setupButton('custom-permission-yes', 'permissionCustomInfoRequest');
-  setupButton('custom-permission-no', 'finishBeforeSms');
-  setupImmediateButton('custom-permission-cancel-numerical', 'cancelCustomInfoRequest', function () {
-    customRequirementNumericalKeypad.deactivate.bind(customRequirementNumericalKeypad);
-  });
   setupImmediateButton('email-cancel', 'cancelEmail', function () {
     emailKeyboard.deactivate.bind(emailKeyboard);
     $('#email-input').data('content', '').val('');
     emailKeyboard.setInputBox('#email-input');
   });
+
+  setupButton('custom-permission-yes', 'permissionCustomInfoRequest');
+  setupButton('custom-permission-no', 'finishBeforeSms');
+  setupImmediateButton('custom-permission-cancel-numerical', 'cancelCustomInfoRequest', customRequirementNumericalKeypad.deactivate.bind(customRequirementNumericalKeypad));
   setupImmediateButton('custom-permission-cancel-text', 'cancelCustomInfoRequest', function () {
-    customRequirementTextKeyboard.deactivate.bind(customRequirementTextKeyboard);
+    customRequirementTextKeyboard.deactivate.bind(customRequirementTextKeyboard)();
     $('.text-input-field-1').removeClass('faded').data('content', '').val('');
     $('.text-input-field-2').addClass('faded').data('content', '').val('');
     customRequirementTextKeyboard.setInputBox('.text-input-field-1');
   });
-  setupImmediateButton('custom-permission-cancel-choiceList', 'cancelCustomInfoRequest', function () {});
-
-  setupButton('custom-permission-yes', 'permissionCustomInfoRequest');
-  setupButton('custom-permission-no', 'finishBeforeSms');
-  setupImmediateButton('custom-permission-cancel-numerical', 'cancelCustomInfoRequest', function () {
-    customRequirementNumericalKeypad.deactivate.bind(customRequirementNumericalKeypad);
-  });
+  setupImmediateButton('custom-permission-cancel-choiceList', 'cancelCustomInfoRequest');
 
   setupButton('external-validation-ok', 'finishBeforeSms');
 
@@ -993,6 +1128,24 @@ $(document).ready(function () {
   if (DEBUG_MODE === 'dev') initDebug();
 });
 
+function disableViewportButtonEvents() {
+  viewportButtonEventsActive = false;
+  disableImmediateButton('completed_viewport', 'completed');
+  disableImmediateButton('withdraw_failure_viewport', 'completed');
+  disableImmediateButton('out_of_coins_viewport', 'completed');
+  disableImmediateButton('fiat_receipt_viewport', 'completed');
+  disableImmediateButton('fiat_complete_viewport', 'completed');
+}
+
+function enableViewportButtonEvents() {
+  viewportButtonEventsActive = true;
+  setupImmediateButton('completed_viewport', 'completed');
+  setupImmediateButton('withdraw_failure_viewport', 'completed');
+  setupImmediateButton('out_of_coins_viewport', 'completed');
+  setupImmediateButton('fiat_receipt_viewport', 'completed');
+  setupImmediateButton('fiat_complete_viewport', 'completed');
+}
+
 function targetButton(element) {
   var classList = element.classList || [];
   var special = classList.contains('button') || classList.contains('circle-button') || classList.contains('square-button');
@@ -1027,12 +1180,24 @@ function touchEvent(element, callback) {
   element.addEventListener('mousedown', handler);
 }
 
-function touchImmediateEvent(element, callback) {
+function touchImmediateEvent(element, action, callback) {
   function handler(e) {
     callback(e);
     e.stopPropagation();
     e.preventDefault();
   }
+
+  // Viewport events need to be disabled to improve UX in some cases. e.g. Not allowing to finish the transaction while a receipt is being printed
+  // To remove event listeners, the exact same function reference needs to be provided to removeEventListener().
+  // As such, the reference to the exact handler function needs to be saved to be called when disabling it, hence the need for viewportEvents
+  // As the same element can have different actions hooked on the same event, this needs to be stored as an array of <action, handler> pairs
+
+  // The viewportButtonEventsActive ensures that no repeated events are being added to the element
+  if (action && element.id.includes('_viewport')) {
+    if (!viewportEvents[element.id]) viewportEvents[element.id] = [];
+    viewportEvents[element.id].push({ action: action, handler: handler });
+  }
+
   if (shouldEnableTouch()) {
     element.addEventListener('touchstart', handler);
   }
@@ -1041,7 +1206,31 @@ function touchImmediateEvent(element, callback) {
 
 function setupImmediateButton(buttonClass, buttonAction, callback) {
   var button = document.getElementById(buttonClass);
-  touchImmediateEvent(button, function () {
+  touchImmediateEvent(button, buttonAction, function () {
+    if (callback) callback();
+    buttonPressed(buttonAction);
+  });
+}
+
+function disableTouchImmediateEvent(element, action) {
+  if (shouldEnableTouch()) {
+    element.removeEventListener('touchstart', viewportEvents[element.id].find(function (it) {
+      return it.action === action;
+    }).handler);
+  }
+  element.removeEventListener('mousedown', viewportEvents[element.id].find(function (it) {
+    return it.action === action;
+  }).handler);
+
+  // Trim the viewportEvents obj
+  viewportEvents[element.id] = viewportEvents[element.id].filter(function (it) {
+    return it.action !== action;
+  });
+}
+
+function disableImmediateButton(buttonClass, buttonAction, callback) {
+  var button = document.getElementById(buttonClass);
+  disableTouchImmediateEvent(button, buttonAction, function () {
     if (callback) callback();
     buttonPressed(buttonAction);
   });
@@ -1144,7 +1333,6 @@ function setCryptomatModel(model) {
   versions.forEach(function (it) {
     return body.removeClass(it);
   });
-  $('body').addClass(model.startsWith('douro') ? 'douro' : model);
 }
 
 function enableRecyclerBillButtons() {
@@ -1162,7 +1350,7 @@ function disableRecyclerBillButtons() {
 }
 
 function setDirection(direction) {
-  var states = [$('.scan_id_photo_state'), $('.scan_manual_id_photo_state'), $('.scan_id_data_state'), $('.security_code_state'), $('.register_us_ssn_state'), $('.us_ssn_permission_state'), $('.register_phone_state'), $('.register_email_state'), $('.terms_screen_state'), $('.verifying_id_photo_state'), $('.verifying_face_photo_state'), $('.verifying_id_data_state'), $('.permission_id_state'), $('.sms_verification_state'), $('.email_verification_state'), $('.bad_phone_number_state'), $('.bad_security_code_state'), $('.max_phone_retries_state'), $('.max_email_retries_state'), $('.failed_permission_id_state'), $('.failed_verifying_id_photo_state'), $('.blocked_customer_state'), $('.fiat_error_state'), $('.fiat_transaction_error_state'), $('.failed_scan_id_data_state'), $('.sanctions_failure_state'), $('.error_permission_id_state'), $('.scan_face_photo_state'), $('.retry_scan_face_photo_state'), $('.permission_face_photo_state'), $('.failed_scan_face_photo_state'), $('.hard_limit_reached_state'), $('.failed_scan_id_photo_state'), $('.retry_permission_id_state'), $('.waiting_state'), $('.insert_promo_code_state'), $('.promo_code_not_found_state'), $('.custom_permission_state'), $('.external_permission_state'), $('.custom_permission_screen2_numerical_state'), $('.custom_permission_screen2_text_state'), $('.custom_permission_screen2_choiceList_state'), $('.external_compliance_state')];
+  var states = [$('.scan_id_photo_state'), $('.scan_manual_id_photo_state'), $('.scan_id_data_state'), $('.security_code_state'), $('.register_us_ssn_state'), $('.us_ssn_permission_state'), $('.register_phone_state'), $('.register_email_state'), $('.terms_screen_state'), $('.verifying_id_photo_state'), $('.verifying_face_photo_state'), $('.verifying_id_data_state'), $('.permission_id_state'), $('.sms_verification_state'), $('.email_verification_state'), $('.bad_phone_number_state'), $('.bad_security_code_state'), $('.max_phone_retries_state'), $('.max_email_retries_state'), $('.failed_permission_id_state'), $('.failed_verifying_id_photo_state'), $('.blocked_customer_state'), $('.fiat_error_state'), $('.fiat_transaction_error_state'), $('.failed_scan_id_data_state'), $('.sanctions_failure_state'), $('.error_permission_id_state'), $('.scan_face_photo_state'), $('.retry_scan_face_photo_state'), $('.permission_face_photo_state'), $('.failed_scan_face_photo_state'), $('.hard_limit_reached_state'), $('.failed_scan_id_photo_state'), $('.retry_permission_id_state'), $('.waiting_state'), $('.insert_promo_code_state'), $('.promo_code_not_found_state'), $('.custom_permission_state'), $('.external_permission_state'), $('.custom_permission_screen2_numerical_state'), $('.custom_permission_screen2_text_state'), $('.custom_permission_screen2_choiceList_state'), $('.external_compliance_state'), $('.external_compliance_timeout_state')];
   cashDirection = direction;
   states.forEach(function (it) {
     setUpDirectionElement(it, direction);
@@ -1181,10 +1369,10 @@ function setDirection(direction) {
 function setTermsScreen(data) {
   var $screen = $('.terms_screen_state');
   $screen.find('.js-terms-title').html(data.title);
-  startPage(data.text, data.acceptDisabled);
+  startPage(data.text || '', data.acceptDisabled);
   $screen.find('.js-terms-cancel-button').html(data.cancel);
   $screen.find('.js-terms-accept-button').html(data.accept);
-  setTermsConditionsTimeout();
+  resetTermsConditionsTimeout();
   setAcceptButtonDisabled($screen, data);
   setTermsConditionsAcceptanceDelay($screen, data);
 }
@@ -1207,6 +1395,7 @@ function setTermsConditionsTimeout() {
 }
 
 function setTermsConditionsAcceptanceDelay(screen, data) {
+  clearTermsConditionsAcceptanceDelay();
   var acceptButton = screen.find('.js-terms-accept-button');
   acceptButton.css({ 'min-width': 0 });
 
@@ -1373,8 +1562,10 @@ function setChooseCoinColors() {
 
   if (isTwoWay) {
     $('.choose_coin_state .change-language').removeClass('cash-in-color').addClass('cash-out-color');
+    $('.choose_coin_state .rates-section').removeClass('cash-in-color').addClass('cash-out-color');
   } else {
     $('.choose_coin_state .change-language').removeClass('cash-out-color').addClass('cash-in-color');
+    $('.choose_coin_state .rates-section').removeClass('cash-out-color').addClass('cash-in-color');
   }
 }
 
@@ -1500,7 +1691,7 @@ function buildCassetteButtonEvents() {
   var fiatButtons = document.getElementById('js-fiat-buttons');
   var lastTouch = null;
 
-  touchImmediateEvent(fiatButtons, function (e) {
+  touchImmediateEvent(fiatButtons, null, function (e) {
     var now = Date.now();
     if (lastTouch && now - lastTouch < 100) return;
     lastTouch = now;
@@ -1717,6 +1908,10 @@ function t(id, str) {
   $('#js-i18n-' + id).html(str);
 }
 
+function lastUsedAddress(lastUsedAddress) {
+  $('.last-use-crypto-address').html(formatAddress(lastUsedAddress));
+}
+
 function translateCoin(_cryptoCode) {
   var coin = getCryptoCurrency(_cryptoCode);
   var cryptoCode = coin.cryptoCodeDisplay || _cryptoCode;
@@ -1725,6 +1920,7 @@ function translateCoin(_cryptoCode) {
   $('.js-i18n-did-send-coins').html(translate('Have you sent the %s yet?', [cryptoCode]));
   $('.js-i18n-scan-address').html(translate('Scan your %s address', [cryptoCode]));
   $('.js-i18n-invalid-address').html(translate('Invalid %s address', [cryptoCode]));
+  $('.js-i18n-want-reuse').html(translate('Would you like to send to the %s address you last used?', [cryptoCode]));
 }
 
 function initTranslatePage() {
@@ -1749,6 +1945,8 @@ function translatePage() {
     var base = el.data('baseTranslation');
     el.attr('placeholder', translate(base));
   });
+
+  applyCustomTranslations();
 
   // Adjust send coins button
   var length = $('#send-coins span').text().length;
@@ -1829,6 +2027,7 @@ function setDepositAddress(depositInfo) {
   $('.deposit_state .send-notice').show();
 
   qrize(depositInfo.depositUrl, $('#qr-code-deposit'), CASH_OUT_QR_COLOR);
+  qrize(depositInfo.toAddress, $('#qr-code-deposit-address'), CASH_OUT_QR_COLOR);
 }
 
 function setVersion(version) {
@@ -1978,6 +2177,7 @@ function setReceiptPrint(receiptStatus, smsReceiptStatus) {
 
   switch (status) {
     case 'disabled':
+      if (!viewportButtonEventsActive) enableViewportButtonEvents();
       $('#' + className + '-cash-in-message').addClass('hide');
       $('#' + className + '-cash-in-button').addClass('hide');
       $('#' + className + '-cash-out-message').addClass('hide');
@@ -1986,6 +2186,7 @@ function setReceiptPrint(receiptStatus, smsReceiptStatus) {
       $('#' + className + '-cash-in-fail-button').addClass('hide');
       break;
     case 'available':
+      if (!viewportButtonEventsActive) enableViewportButtonEvents();
       $('#' + className + '-cash-in-message').addClass('hide');
       $('#' + className + '-cash-in-button').removeClass('hide');
       $('#' + className + '-cash-out-message').addClass('hide');
@@ -1994,6 +2195,7 @@ function setReceiptPrint(receiptStatus, smsReceiptStatus) {
       $('#' + className + '-cash-in-fail-button').removeClass('hide');
       break;
     case 'printing':
+      if (viewportButtonEventsActive) disableViewportButtonEvents();
       var message = locale.translate(printing).fetch();
       $('#' + className + '-cash-in-button').addClass('hide');
       $('#' + className + '-cash-in-message').html(message);
@@ -2006,6 +2208,7 @@ function setReceiptPrint(receiptStatus, smsReceiptStatus) {
       $('#' + className + '-cash-in-fail-message').removeClass('hide');
       break;
     case 'success':
+      if (!viewportButtonEventsActive) enableViewportButtonEvents();
       var successMessage = '✔ ' + locale.translate(success).fetch();
       $('#' + className + '-cash-in-button').addClass('hide');
       $('#' + className + '-cash-in-message').html(successMessage);
@@ -2018,6 +2221,7 @@ function setReceiptPrint(receiptStatus, smsReceiptStatus) {
       $('#' + className + '-cash-in-fail-message').removeClass('hide');
       break;
     case 'failed':
+      if (!viewportButtonEventsActive) enableViewportButtonEvents();
       var failMessage = '✖ ' + locale.translate('An error occurred, try again.').fetch();
       $('#' + className + '-cash-in-button').addClass('hide');
       $('#' + className + '-cash-in-message').html(failMessage);
@@ -2034,6 +2238,120 @@ function setReceiptPrint(receiptStatus, smsReceiptStatus) {
 
 function externalCompliance(url) {
   qrize(url, $('#qr-code-external-validation'), cashDirection === 'cashIn' ? CASH_IN_QR_COLOR : CASH_OUT_QR_COLOR);
-  return setScreen('external_compliance');
+  return setState('external_compliance');
+}
+
+function setAutomaticPrint() {
+  $('#print-receipt-cash-in-button').addClass('hide');
+  $('#print-receipt-cash-out-button').addClass('hide');
+  $('#print-receipt-cash-in-fail-button').addClass('hide');
+}
+
+function suspiciousAddress(blacklistMessage) {
+  if (blacklistMessage) {
+    $('#suspicious-address-message').html(blacklistMessage);
+  } else {
+    $('#suspicious-address-message').html(translate("This address may be associated with a deceptive offer or a prohibited group. Please make sure you\'re using an address from your own wallet."));
+  }
+}
+
+var customTranslations = {};
+
+function setScreenOptions(opts) {
+  opts.rates && opts.rates.active ? $('#rates-section').show() : $('#rates-section').hide();
+
+  if (opts.customText) {
+    customTranslations = opts.customText.reduce(function (acc, item) {
+      acc[item.id] = item.text;
+      return acc;
+    }, {});
+    applyCustomTranslations();
+  }
+}
+
+function applyCustomTranslations() {
+  $('.js-custom-text').each(function () {
+    var el = $(this);
+    var screenId = el.data('text-id');
+    console.log(screenId, customTranslations[screenId]);
+
+    if (screenId && customTranslations[screenId]) {
+      el.html(customTranslations[screenId]);
+    }
+  });
+}
+
+function thousandSeparator(number, country, minimumFractionDigits) {
+  var numberFormatter = Intl.NumberFormat(country, { minimumFractionDigits: minimumFractionDigits });
+  return numberFormatter.format(number);
+}
+
+function setRates(allRates, fiat) {
+  var ratesTable = $('.rates-content');
+  var tableHeader = $('<div class="xs-margin-bottom">\n  <h4 class="js-i18n">' + translate('Buy') + '</h4>\n  <h4 class="js-i18n">' + translate('Crypto') + '</h4>\n  <h4 class="js-i18n">' + translate('Sell') + '</h4>\n</div>');
+  var coinEntries = [];
+
+  Object.keys(allRates).forEach(function (it) {
+    var cashIn = BN(allRates[it].cashIn);
+    var cashOut = BN(allRates[it].cashOut);
+    var biggestDecimalPlaces = Math.max(cashIn.dp(), cashOut.dp());
+
+    coinEntries.push($('<div class="xs-margin-bottom">\n    <p class="d2 js-i18n">' + thousandSeparator(BN(allRates[it].cashIn).toFixed(2), localeCode) + '</p>\n    <h4 class="js-i18n">' + it + '</h4>\n    <p class="d2 js-i18n">' + thousandSeparator(BN(allRates[it].cashOut).toFixed(2), localeCode) + '</p>\n  </div>'));
+  });
+
+  $('#rates-fiat-currency').text(fiat);
+  ratesTable.empty().append(tableHeader).append(coinEntries);
+}
+
+function enableLiveview() {
+  if (!liveviewEnabled) return;
+
+  var liveviewDiv = $('#liveview-div');
+  var existingImg = document.getElementById('liveview-img');
+  if (existingImg) {
+    existingImg.remove();
+  }
+
+  var liveviewImg = document.createElement('img');
+  liveviewImg.id = 'liveview-img';
+  liveviewImg.type = 'multipart/x-mixed-replace';
+  liveviewImg.src = 'http://localhost:' + LIVEVIEW_PORT + '/?' + Date.now();
+  liveviewImg.onerror = disableLiveview;
+
+  var loaded = false;
+  liveviewImg.onload = function () {
+    if (!loaded) {
+      $('#scan-images').addClass('hide');
+      liveviewDiv.removeClass('hide');
+    }
+    loaded = true;
+  };
+
+  liveviewDiv.append(liveviewImg);
+
+  var cornerAccentTr = document.createElement('div');
+  cornerAccentTr.className = 'corner-accent top-right';
+
+  liveviewDiv.append(cornerAccentTr);
+
+  var cornerAccentBl = document.createElement('div');
+  cornerAccentBl.className = 'corner-accent bottom-left';
+
+  liveviewDiv.append(cornerAccentBl);
+
+  var scanLine = document.createElement('div');
+  scanLine.className = 'scan-line';
+
+  liveviewDiv.append(scanLine);
+}
+
+function disableLiveview() {
+  // stop loading liveview; kills the HTTP connection
+  $('#liveview-img').attr('src', '');
+
+  var liveviewDiv = $('#liveview-div');
+  liveviewDiv.empty();
+  liveviewDiv.addClass('hide');
+  $('#scan-images').removeClass("hide");
 }
 //# sourceMappingURL=app.js.map

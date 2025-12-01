@@ -8,6 +8,8 @@ with import (fetchTarball {
 stdenv.mkDerivation {
     name = "node";
     buildInputs = [
+      pkg-config
+      libv4l
       nodejs_22
       openssl
       python3

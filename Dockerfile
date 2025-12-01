@@ -1,4 +1,4 @@
-FROM lamassu/upboard-build:2.0 as build
+FROM lamassu/upboard-build:3.0 as build
 
 WORKDIR lamassu-machine
 
@@ -17,9 +17,14 @@ RUN cp -r ./deploy-files/fonts/* ./ui/css/fonts/
 
 
 # Runtime
-FROM nginx:1.27.2-alpine
+FROM nginx:1.27.5-bookworm
 
-RUN apk add nodejs --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/main --allow-untrusted
+RUN apt-get update && apt-get install -y --force-yes curl openssl gnupg
+RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
+RUN apt-get install -y ca-certificates
+RUN curl -sS https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs
+
+# RUN apk add nodejs --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/main --allow-untrusted
 
 WORKDIR lamassu-machine
 COPY --from=build ./lamassu/lamassu-machine ./

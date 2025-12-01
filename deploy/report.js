@@ -1,8 +1,10 @@
 'use strict';
 
-var https = require('https');
-var fs = require('fs');
-var path = require('path');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
+
+let isOffline = false
 
 function loadCerts() {
   const config = JSON.parse(fs.readFileSync('/opt/lamassu-machine/device_config.json'));
@@ -15,22 +17,32 @@ function loadCerts() {
   }
 }
 
-var _certs = loadCerts();
+let loaded_certs = null;
+const certs = () => {
+  if (!loaded_certs)
+    loaded_certs = loadCerts()
+  return loaded_certs;
+}
 
-module.exports.report = function report(err, res, cb) {
+function report(err, res, cb) {
   console.log(res);
-  var data = JSON.stringify({
+  if (isOffline)
+    return cb()
+
+  const data = JSON.stringify({
     error: err ? err : null,
     result: res
   });
 
-  var options = {
+  const { cert, key } = certs()
+
+  const options = {
     host: 'updates.lamassu.is',
     port: 8000,
     path: '/report',
     method: 'POST',
-    key: _certs.key,
-    cert: _certs.cert,
+    key,
+    cert,
     rejectUnauthorized: true,
     headers: {
       'Content-Type': 'application/json',
@@ -40,7 +52,7 @@ module.exports.report = function report(err, res, cb) {
   options.agent = new https.Agent(options);
 
   // Set up the request
-  var req = https.request(options, function(res) {
+  const req = https.request(options, function(res) {
     res.setEncoding('utf8');
     res.resume();
     res.on('end', cb);
@@ -51,6 +63,11 @@ module.exports.report = function report(err, res, cb) {
   req.end();
 };
 
-module.exports.certs = function certs() {
-  return _certs;
-};
+const setOffline = () => {
+  isOffline = true
+}
+
+module.exports = {
+  report,
+  setOffline,
+}

@@ -3,42 +3,41 @@
 /*
  * How to use:
  * 1. Copy `update.tar` into `/opt/lamassu-updates/download/`
- * 2. Run `node manual_update.js`
+ * 2. Run `node manual_update.js PLATFORM MODEL true`
  */
 
-var fs = require('fs')
-var path = require('path')
+const fs = require('fs')
+const path = require('path')
 
-var codeRoot = __dirname
-var DEVICE_CONFIG_PATH = path.resolve(codeRoot, 'device_config.json')
+const codeRoot = __dirname
+const DEVICE_CONFIG_PATH = path.join(codeRoot, 'device_config.json')
 
-var deviceConfig = JSON.parse(fs.readFileSync(DEVICE_CONFIG_PATH))
+const deviceConfig = JSON.parse(fs.readFileSync(DEVICE_CONFIG_PATH))
 
-var config = deviceConfig.updater.extractor
-
+const config = deviceConfig.updater.extractor
 config.skipVerify = true
-var extractor = require(codeRoot + '/lib/update/extractor').factory(config)
 
-var fileInfo = {
+const extractor = require(path.join(codeRoot, 'lib/update/extractor')).factory(config)
+
+const fileInfo = {
   rootPath: '/opt/lamassu-updates/extract',
   filePath: '/opt/lamassu-updates/download/update.tar'
-}
-
-function triggerWatchdog (cb) {
-  var donePath = '/opt/lamassu-updates/extract/done.txt'
-  fs.writeFile(donePath, 'DONE\n', null, function (err) {
-    if (err) throw err
-    console.log('watchdog triggered')
-    cb()
-  })
 }
 
 process.on('SIGTERM', function () {
   // Immune
 })
 
-extractor.extract(fileInfo, function (err) {
-  console.log('extracting...')
-  if (err) throw err
-  triggerWatchdog(function () { console.log('all done.') })
-})
+const extract = (fileInfo) =>
+  new Promise((resolve, reject) =>
+    extractor.extract(fileInfo, err => err ? reject(err) : resolve())
+  )
+
+const upgrade = () => {
+  const lmm = require(path.join(fileInfo.rootPath, 'package', 'lamassu-machine-manager.js'))
+  return lmm.upgrade(true)
+}
+
+extract(fileInfo)
+  .then(upgrade)
+  .catch(console.log)

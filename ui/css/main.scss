@@ -64,6 +64,12 @@ footer {
   min-height: 12vh;
 }
 
+.print-receipt-wrapper {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+}
+
 @media (max-height: 900px) {
   .take-a-photo {
     display: flex;
@@ -104,6 +110,7 @@ footer {
 
 .system-color {
   background-color: $concrete;
+
   h2,
   h3 {
     color: $sapphire;
@@ -198,9 +205,11 @@ footer {
 
 .cash-in-color .contacts {
   background-color: $amazonite-two;
+
   .d2 {
     color: $white;
   }
+
   path, circle, rect {
     stroke: $white;
   }
@@ -208,9 +217,11 @@ footer {
 
 .cash-out-color .contacts {
   background-color: $salmon-two;
+
   .d2 {
     color: $white;
   }
+
   path, circle, rect {
     stroke: $white;
   }
@@ -221,16 +232,20 @@ footer {
   min-width: 41vw;
   background-color: $white;
   padding: 3vh;
+
   table {
     width: 100%;
   }
+
   td {
     padding: 1vh;
+
     img, svg {
       width: 2vw;
       margin-right: 1vw;
       vertical-align: middle;
     }
+
     span {
       vertical-align: middle;
     }
@@ -440,6 +455,7 @@ footer {
 .cancel-button-wrapper {
   margin-left: auto;
   position: relative;
+
   &:after {
     position: absolute;
     content: '';
@@ -603,24 +619,25 @@ footer {
   width: 39vh;
 }
 
-#phone-keypad, #security-keypad, #us-ssn-keypad, #custom-requirement-numeric-keypad  {
+#phone-keypad, #security-keypad, #us-ssn-keypad, #custom-requirement-numeric-keypad {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-left: 4vh;
   margin-top: 3vh;
+
   .keys {
     width: 42vh;
   }
 }
 
-#custom-requirement-numeric-keypad .progress-button-wrapper  {
+#custom-requirement-numeric-keypad .progress-button-wrapper {
   display: flex;
   justify-content: flex-end;
 }
 
-#phone-keypad .progress-button, #security-keypad .progress-button, #us-ssn-keypad .progress-button  {
+#phone-keypad .progress-button, #security-keypad .progress-button, #us-ssn-keypad .progress-button {
   float: right;
   margin-top: 5vh;
 }
@@ -629,6 +646,7 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
+
   img {
     width: 3vh;
   }
@@ -638,6 +656,7 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
+
   img {
     width: 2vh;
   }
@@ -670,8 +689,7 @@ footer {
 .choose-coin-cash-in .cash-out-box-wrapper,
 .choose-coin-cash-in .coin-redeem,
 .choose-coin-cash-in .two-way-bg,
-.choose-coin-two-way .cash-in-bg
-{
+.choose-coin-two-way .cash-in-bg {
   display: none;
 }
 
@@ -733,6 +751,10 @@ footer {
   width: 30vh;
 }
 
+.rates-section {
+  margin-left: 2em;
+}
+
 #change-language-section #language-dropdown-toggle {
   align-items: center;
 }
@@ -757,6 +779,7 @@ footer {
 #cryptos {
   bottom: 0vh;
   margin-left: -3vh;
+
   button {
     flex-direction: row;
     justify-content: start;
@@ -802,6 +825,7 @@ footer {
 
 .crypto-buttons .choose-coin-button:first-child {
   padding-left: 1vh;
+
   &:after {
     position: absolute;
     content: '';
@@ -818,6 +842,7 @@ footer {
   display: flex;
   flex-direction: column;
   position: relative;
+
   &:after {
     position: absolute;
     content: '';
@@ -868,10 +893,10 @@ footer {
 .bg-image {
   position: fixed;
   width: 100%;
-  top:0;
-  bottom:0;
-  left:0;
-  right:0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: -1;
 }
 
@@ -891,7 +916,7 @@ footer {
   margin-top: -6vh;
 }
 
-.insert_first_bills_recycler_state .secondary-side, .insert_bills_recycler_state .secondary-side {
+.insert_first_bills_recycler_state .secondary-side, .insert_bills_recycler_state .secondary-side, .scan_address_state .secondary-side {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -953,6 +978,7 @@ footer {
   width: 8vh;
   margin-left: 6vh;
   margin-top: 6vh;
+
   p {
     margin: 4vh 0;
   }
@@ -983,6 +1009,7 @@ footer {
     align-content: center;
     justify-content: center;
   }
+
   .img {
     width: 44vw;
   }
@@ -991,6 +1018,7 @@ footer {
 .info {
   text-align: center;
   align-items: center;
+
   header {
     padding: 0;
     height: 37vh;
@@ -998,34 +1026,43 @@ footer {
     align-items: flex-end;
     width: 100%;
   }
+
   main {
     height: auto;
     min-height: 37vh;
     align-items: center;
     flex-direction: column;
+
     .text-content {
       text-align: left;
+
       p {
         margin: 1vh 0;
       }
+
       // TODO get rid of this
       .no-margin-bottom {
         margin-bottom: 0;
       }
+
       .sm-margin-bottom {
         margin-bottom: 2vh;
       }
+
       .no-margin-top {
         margin-top: 0;
       }
     }
   }
+
   footer {
     justify-content: center;
+
     button {
       margin: 0 3vh;
     }
   }
+
   .tl2 {
     line-height: 1.4;
   }
@@ -1033,9 +1070,11 @@ footer {
 
 .no-action-info {
   @extend .info;
+
   main {
     margin-top: 2vh;
   }
+
   header {
     height: 40vh;
   }
@@ -1043,9 +1082,11 @@ footer {
 
 .info-with-contact {
   @extend .info;
+
   header {
     height: 36vh;
   }
+
   main {
     min-height: 38vh;
   }
@@ -1053,6 +1094,7 @@ footer {
 
 .info-with-contact-and-info {
   @extend .info;
+
   header {
     height: 30vh;
   }
@@ -1060,9 +1102,11 @@ footer {
 
 .info-no-image {
   @extend .info;
+
   header {
     height: 14vh;
   }
+
   main {
     min-height: 60vh;
   }
@@ -1104,14 +1148,14 @@ footer {
   }
 }
 
-.cash_in_disabled_state {  
+.cash_in_disabled_state {
   header img {
     width: 30vh;
     margin-left: 3vh;
   }
 }
 
-.cash_in_only_coin_state {  
+.cash_in_only_coin_state {
   header img {
     width: 30vh;
     margin-left: 3vh;
@@ -1180,6 +1224,7 @@ footer {
   main {
     text-align: left;
   }
+
   img {
     width: 21vh;
     margin-left: 4vh;
@@ -1230,12 +1275,15 @@ footer {
   .promo-code-input {
     border-bottom: $amazonite-three 2px solid;
   }
+
   .text-requirement-input {
     border-bottom: $amazonite-three 2px solid;
   }
+
   .standard-keyboard {
     .key {
       background-color: $amazonite-three;
+
       &:active {
         background-color: $amazonite-two;
       }
@@ -1247,12 +1295,15 @@ footer {
   .promo-code-input {
     border-bottom: $salmon-three 2px solid;
   }
+
   .text-requirement-input {
     border-bottom: $salmon-three 2px solid;
   }
+
   .standard-keyboard {
     .key {
       background-color: $salmon-three;
+
       &:active {
         background-color: $salmon-two;
       }
@@ -1264,28 +1315,35 @@ footer {
   box-sizing: border-box;
   width: 100%;
   direction: ltr;
+
   .standard-backspace {
     display: flex;
     align-items: center;
     justify-content: center;
+
     img {
       width: 3vh;
     }
   }
+
   .standard-backspace-key {
     width: 18vh !important;
   }
+
   .row {
     justify-content: center;
   }
+
   .key {
     box-sizing: border-box;
     border: 1px;
     color: $white;
     margin: 0.45vh;
+
     &:active {
       border: none;
     }
+
     border-radius: 10px;
     font-size: 3vh;
     height: 10vh;
@@ -1295,6 +1353,7 @@ footer {
       font-size: 5vh
     }
   }
+
   .space {
     width: 71vh;
   }
@@ -1338,25 +1397,21 @@ footer {
 }
 
 #print-receipt-cash-in-button, #print-receipt-cash-out-button, #print-receipt-cash-in-fail-button {
-  margin-top: 3vh;
 }
 
 #send-sms-receipt-cash-in-button, #send-sms-receipt-cash-out-button, #send-sms-receipt-cash-in-fail-button {
   margin-left: 3vh;
-  margin-top: 3vh;
 }
 
-#fiat_complete_viewport #print-receipt-cash-out-button  #send-sms-receipt-cash-out-button {
+#fiat_complete_viewport #print-receipt-cash-out-button #send-sms-receipt-cash-out-button {
   margin-top: 18vh;
 }
 
 #print-receipt-cash-in-message, #print-receipt-cash-out-message, #print-receipt-cash-in-fail-message {
-  margin-top: 4vh;
 }
 
 #send-sms-receipt-cash-in-message, #send-sms-receipt-cash-out-message, #send-sms-receipt-cash-in-fail-message {
   margin-left: 3vh;
-  margin-top: 4vh;
 }
 
 .promo-code-title-wrapper {
@@ -1395,54 +1450,71 @@ footer {
 
 .i18n-rtl {
   direction: rtl;
+
   .cancel-button-wrapper {
     margin-right: auto;
     margin-left: 0;
   }
+
   .primary-side {
     padding-left: 0;
     padding-right: 9.4vw;
   }
+
   .cash-buttons {
     padding-right: 8vw;
     padding-left: 0;
   }
+
   .contacts {
     td div svg {
       margin-left: 1.25vw;
       margin-right: 0;
     }
   }
+
   .info main .text-content {
     text-align: right;
   }
+
   .insert_more_bills_state footer {
     margin-right: 15vh;
     margin-left: 0;
   }
+
   .insert_bills_state footer {
     padding-left: 0;
     padding-right: 9.4vw;
   }
+
   #networks img {
     margin-right: 14vh;
     margin-left: 0;
   }
+
   .scan-image {
     margin-right: 10vh;
     margin-left: 0;
   }
+
   .crypto-rate {
     margin-left: auto;
     margin-right: 0;
   }
+
   .coin-redeem {
     margin-right: auto;
     margin-left: 0;
   }
-  .crypto-address, .crypto-address-no-br{
+
+  .crypto-address, .crypto-address-no-br {
     display: flex;
     justify-content: flex-end;
+  }
+
+  .rates-section {
+    margin-left: 0;
+    margin-right: 2em;
   }
 }
 
@@ -1651,13 +1723,13 @@ footer {
 
 .cash-in-color {
   .choice-list-item {
-      background-color: $amazonite-three;
+    background-color: $amazonite-three;
   }
 }
 
 .cash-out-color {
   .choice-list-item {
-      background-color: $salmon-three;
+    background-color: $salmon-three;
   }
 }
 
@@ -1669,9 +1741,11 @@ footer {
   flex-direction: column;
   width: 8vh;
   margin-top: 6vh;
+
   p {
     margin: 4vh 0;
   }
+
   justify-content: center;
   margin-left: 5%;
 }
@@ -1685,6 +1759,7 @@ footer {
   justify-content: center;
   align-items: center;
   font-family: $font-secondary;
+
   &:disabled {
     @include cash-disabled-background-colors;
   }
@@ -1707,14 +1782,17 @@ footer {
 
 .choice-selected {
   @include cash-background-colors;
-  color: $ligth-color; 
+  color: $ligth-color;
+
   &:active, .active {
     background-color: $white;
     @include cash-colors;
   }
+
   &:disabled {
     @include cash-disabled-background-colors;
   }
+
   .choice-list-radio {
     border-color: transparent;
     @include cash-disabled-background-colors;
@@ -1730,6 +1808,7 @@ footer {
   align-items: center;
   justify-content: center;
   margin-right: 10px;
+
   div {
     height: 10px;
     width: 10px;
@@ -1744,8 +1823,9 @@ footer {
 
 .cash-in-color {
   #us-ssn-permission-send-coins {
-     display: initial;
+    display: initial;
   }
+
   #us-ssn-permission-cancel {
     display: none;
   }
@@ -1754,10 +1834,11 @@ footer {
 .cash-out-color {
   #us-ssn-permission-send-coins {
     display: none;
- }
- #us-ssn-permission-cancel {
-   display: initial;
- }
+  }
+
+  #us-ssn-permission-cancel {
+    display: initial;
+  }
 }
 
 #rates main {
@@ -1776,34 +1857,40 @@ footer {
   display: flex;
   flex-direction: column;
   width: 70vw;
+
   div {
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
+
     h4 {
       margin: 0 4rem;
       width: 10vw;
       text-align: center;
       color: $sapphire;
     }
+
     h4:first-child {
       margin: 0;
       text-align: right;
       color: $sapphire;
       font-weight: normal;
     }
+
     h4:last-child {
       margin: 0;
       text-align: left;
       color: $sapphire;
       font-weight: normal;
     }
+
     p:first-child {
       margin: 0;
       text-align: right;
       color: $sapphire;
     }
+
     p:last-child {
       margin: 0;
       text-align: left;
@@ -1816,14 +1903,32 @@ button[disabled] {
   pointer-events: none;
 }
 
-.external_compliance_state {
-  footer: {
-    margin-top: 15px;
+.external_compliance_timeout_state {
+  justify-content: center;
+}
+
+.external_compliance_state main {
+  margin-top: 10vh;
+}
+
+.reuse_last_address_state {
+  justify-content: center;
+
+  main {
+    width: 66vw;
+  }
+
+  h3, button {
+    line-height: 1;
   }
 }
 
 .external_compliance_state footer {
   margin-top: 5vh;
+  margin-bottom: 10vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .external-validation-info {
@@ -1831,14 +1936,198 @@ button[disabled] {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
+
   div {
     margin-right: 15px;
-  };
+  }
+;
+
   div:last-child {
     margin-right: 0px;
-  };
+  }
+;
+}
+
+#liveview-div {
+  border: none;
+  width: 100%;
+  max-width: 80%;
+  max-height: 80%;
+  overflow: hidden;
+  position: relative;
+  border-radius: 20px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3),
+  0 0 0 2px rgba(255, 255, 255, 0.1),
+  inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  filter: drop-shadow(0 0 20px rgba(29, 209, 161, 0.3));
+  transition: all 0.3s ease;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 3px solid #1dd1a1;
+    z-index: 2;
+  }
+
+  &::before {
+    top: 15px;
+    left: 15px;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 15px;
+    animation: pulse-corner 2s infinite;
+  }
+
+  &::after {
+    bottom: 15px;
+    right: 15px;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 15px;
+    animation: pulse-corner 2s infinite 1s;
+  }
+}
+
+#liveview-img {
+  border: none;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  margin: auto;
+  border-radius: 16px;
+  object-fit: cover;
+  display: block;
+}
+
+@keyframes pulse-corner {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(29, 209, 161, 0.4);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 10px rgba(29, 209, 161, 0);
+  }
+}
+
+.corner-accent {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #1dd1a1;
+  z-index: 2;
+
+  &.top-right {
+    top: 15px;
+    right: 15px;
+    border-left: none;
+    border-bottom: none;
+    border-top-right-radius: 15px;
+    animation: pulse-corner 2s infinite 0.5s;
+  }
+
+  &.bottom-left {
+    bottom: 15px;
+    left: 15px;
+    border-right: none;
+    border-top: none;
+    border-bottom-left-radius: 15px;
+    animation: pulse-corner 2s infinite 1.5s;
+  }
+}
+
+.scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+          transparent,
+          #1dd1a1,
+          rgba(29, 209, 161, 0.8),
+          #1dd1a1,
+          transparent
+  );
+  animation: scan 4s linear infinite;
+  z-index: 3;
+  box-shadow: 0 0 20px #1dd1a1;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(calc(100vh - 100%));
+    opacity: 0;
+  }
+}
+
+/* QR Toggle Styles */
+.qr-toggle-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2vh;
+  gap: 1vh;
+}
+
+.qr-toggle-button {
+  padding: 1.5vh 3vh;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50px;
+  font-size: 2vh;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  &.enabled, &.enabled {
+    background-color: #ffffff;
+    color: #403c51;
+    border-color: #ffffff;
+  }
+}
+
+.qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qr-help-text {
+  margin-top: 2vh;
+  color: white;
+  font-weight: bold;
+  font-size: 1.8vh;
+  text-align: center;
+  max-width: 80%;
+  line-height: 1.4;
 }
 
 @media (orientation: portrait) {
   @import "./portrait.scss";
 }
+

@@ -1,0 +1,2 @@
+# Disable USB autosuspend globally for all devices and hubs
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"

@@ -1,4 +1,4 @@
-/* globals $, Keypad, TimelineMax, requestAnimationFrame, kjua, Keyboard, locales, Jed */
+/* globals $, Keypad, TimelineMax, requestAnimationFrame, kjua, Keyboard, locales, Jed, ChoiceList */
 
 /*
 How this currently works: change the app.js import on start.html to test-app.js
@@ -19,6 +19,7 @@ let background = null
 let aspectRatio800 = true
 let locale = null
 let localeCode = 'en-US'
+let customRequirementChoiceList = null
 
 $(function () {
   $('body').css('cursor', 'default')
@@ -64,6 +65,16 @@ $(function () {
   })
 
   securityKeypad.activate()
+
+  customRequirementChoiceList = new ChoiceList({
+    id: 'custom-requirement-choicelist-wrapper',
+    setComplianceTimeout: () => console.log('heh')
+  }).init(function (result) {
+    if (currentState !== 'custom_permission_screen2_choiceList') return
+    buttonPressed('customInfoRequestSubmit', result)
+  })
+
+  customRequirementChoiceList.replaceChoices(['test', 'test2'])
 
   var cList = document.createElement('div')
   cList.id = 'clicker-list'
@@ -214,12 +225,12 @@ function copyToClipboard (element) {
 }
 
 function setupFakes () {
-  let amount = [ '<span class="integer">34</span><span class="decimal-char">',
+  let amount = ['<span class="integer">34</span><span class="decimal-char">',
     '.', '</span><span class="decimal">479</span>'
   ].join('')
 
-  let address = 'wjy98nu928ud1o82dbj2u9i81wqjjyu98iwn'
-  $('.deposit_state .send-notice .crypto-address').text(formatAddress(address))
+  let address = 'wjy98nu928ud1o82dbj2u9i81wqjjyu98iwwjy98nu928ud1o82dbj2u9i81wqjjyu98iwnn'
+  $('.deposit_state .send-notice .crypto-address .last-use-crypto-address').text(formatAddress(address))
   $('.fiat_receipt_state .sent-coins .crypto-address').text(formatAddress(address))
   $('.fiat_complete_state .sent-coins .crypto-address').text(formatAddress(address))
   $('.deposit_state .send-notice .crypto-address').text(formatAddress(address))
@@ -229,6 +240,7 @@ function setupFakes () {
   $('.insert_bills_state .bottom-bar .current-crypto').text('Lamassu Cryptomat')
   $('#js-i18n-high-bill-header').text('We\'re a little low on crypto.')
   $('#js-i18n-highest-bill').html(`Please insert <span class="integer">10</span> EUR or less.`)
+  $('.js-i18n-want-reuse').html('Would you like to send to the BTC address you last used?')
   $('.js-i18n-did-send-coins').html('Have you sent the BTC yet?')
   $('.js-i18n-lowest-bill').html('Please insert <span class="integer">10</span> EUR or more.')
   $('.js-i18n-total-purchased').html('total purchased')
@@ -280,7 +292,11 @@ function setupFakes () {
     $('.retry_permission_id_state'),
     $('.waiting_state'),
     $('.scan_manual_id_photo_state'),
-    $('.promo_code_not_found_state')
+    $('.promo_code_not_found_state'),
+    $('.custom_permission_screen2_choiceList_state'),
+    $('.external_compliance_state'),
+    $('.external_compliance_timeout_state'),
+    $('.external_permission_state')
   ]
 
   states.forEach(it => {
@@ -326,6 +342,7 @@ function setupFakes () {
   qrize(address, $('#qr-code-fiat-receipt'), CASH_OUT_QR_COLOR)
   qrize(address, $('#qr-code-fiat-complete'), CASH_OUT_QR_COLOR)
   qrize(address, $('#qr-code-deposit'), CASH_OUT_QR_COLOR)
+  qrize(address, $('#qr-code-external-validation'), CASH_OUT_QR_COLOR)
 }
 
 function qrize (text, target, color, lightning) {
